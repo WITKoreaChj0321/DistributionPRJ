@@ -62,33 +62,50 @@ def init_chroma() -> chromadb.Collection:
     return collection
 
 
+_SQLITE_BATCH = 100
+
+
 async def save_to_sqlite(questions: list[dict]) -> int:
-    """SQLite에 문제 메타데이터 저장. 저장된 문제 수 반환."""
+    """SQLite에 문제 메타데이터 저장. 저장된 문제 수 반환.
+
+    - 100개 단위 배치 커밋으로 메모리 부하 방지
+    - ON CONFLICT DO NOTHING: chroma_id 중복 시 건너뜀 (IntegrityError 방지)
+    """
+    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+
     saved = 0
     async with AsyncSessionLocal() as session:
-        for q in questions:
-            chroma_id = _make_chroma_id(q)
-            options = q.get("options", [])
+        for start in range(0, len(questions), _SQLITE_BATCH):
+            batch = questions[start : start + _SQLITE_BATCH]
+            for q in batch:
+                chroma_id = _make_chroma_id(q)
+                options = q.get("options", [])
 
-            db_q = Question(
-                year=q["year"],
-                round=q["round"],
-                subject=q["subject"],
-                question_num=q["question_num"],
-                question_text=q["question_text"],
-                option_1=options[0] if len(options) > 0 else None,
-                option_2=options[1] if len(options) > 1 else None,
-                option_3=options[2] if len(options) > 2 else None,
-                option_4=options[3] if len(options) > 3 else None,
-                option_5=options[4] if len(options) > 4 else None,
-                answer=q["answer"],
-                explanation=q.get("explanation", ""),
-                source_url=q.get("source_url", ""),
-                chroma_id=chroma_id,
-            )
-            session.add(db_q)
-            saved += 1
-        await session.commit()
+                stmt = (
+                    sqlite_insert(Question)
+                    .values(
+                        year=q["year"],
+                        round=q["round"],
+                        subject=q["subject"],
+                        question_num=q["question_num"],
+                        question_text=q["question_text"],
+                        option_1=options[0] if len(options) > 0 else None,
+                        option_2=options[1] if len(options) > 1 else None,
+                        option_3=options[2] if len(options) > 2 else None,
+                        option_4=options[3] if len(options) > 3 else None,
+                        option_5=options[4] if len(options) > 4 else None,
+                        answer=q["answer"],
+                        explanation=q.get("explanation", ""),
+                        source_url=q.get("source_url", ""),
+                        chroma_id=chroma_id,
+                    )
+                    .on_conflict_do_nothing(index_elements=["chroma_id"])
+                )
+                result = await session.execute(stmt)
+                saved += result.rowcount
+
+            await session.commit()
+
     return saved
 
 
