@@ -74,7 +74,7 @@ class OCRProcessor:
         response = await loop.run_in_executor(None, _call)
 
         texts = response.text_annotations
-        full_text = texts[0].description if texts else ""
+        full_text = (texts[0].description or "") if texts else ""
         wrong_nums = self._detect_wrong_marks(texts)
         parsed = self._parse_exam_structure(full_text)
 
