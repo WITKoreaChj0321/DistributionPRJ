@@ -210,11 +210,11 @@ async def run_init(use_sample: bool, crawl_range: tuple[int, int] | None):
 
 def main():
     parser = argparse.ArgumentParser(description="유통관리사 기출문제 DB 초기화")
-    group = parser.add_mutually_exclusive_group(required=True)
+    group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
         "--use-sample",
         action="store_true",
-        help="샘플 데이터로 초기화 (테스트/개발용)",
+        help="샘플 데이터로 초기화 (기본값, 테스트/개발용)",
     )
     group.add_argument(
         "--crawl",
@@ -225,8 +225,10 @@ def main():
     )
     args = parser.parse_args()
 
+    # 인자 없이 실행하면 --use-sample 기본 동작
+    use_sample = args.use_sample or (args.crawl is None)
     crawl_range = tuple(args.crawl) if args.crawl else None
-    asyncio.run(run_init(use_sample=args.use_sample, crawl_range=crawl_range))
+    asyncio.run(run_init(use_sample=use_sample, crawl_range=crawl_range))
 
 
 if __name__ == "__main__":
