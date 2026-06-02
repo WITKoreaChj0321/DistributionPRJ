@@ -79,7 +79,7 @@ class VectorDBManager:
         if not questions:
             return
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         collection = self.get_collection()
 
         texts = [q["question_text"] for q in questions]
@@ -115,7 +115,7 @@ class VectorDBManager:
         n_results: int = 5,
         subject_filter: Optional[str] = None,
     ) -> list[dict]:
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
         collection = self.get_collection()
 
         query_embedding = await loop.run_in_executor(

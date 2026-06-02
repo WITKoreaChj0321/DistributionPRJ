@@ -62,16 +62,16 @@ class OCRProcessor:
 
     async def _process_with_vision(self, image_bytes: bytes) -> OCRResult:
         from google.cloud import vision
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _call():
-            image = vision.Image(content=image_bytes)
-            response = self._vision_client.text_detection(image=image)
+            img = vision.Image(content=image_bytes)
+            response = self._vision_client.text_detection(image=img)
+            if response.error.message:
+                raise RuntimeError(f"Google Vision API error: {response.error.message}")
             return response
 
         response = await loop.run_in_executor(None, _call)
-        if response.error.message:
-            raise RuntimeError(f"Google Vision API error: {response.error.message}")
 
         texts = response.text_annotations
         full_text = texts[0].description if texts else ""
@@ -96,7 +96,7 @@ class OCRProcessor:
         from PIL import Image
         import io
 
-        loop = asyncio.get_event_loop()
+        loop = asyncio.get_running_loop()
 
         def _call():
             img = Image.open(io.BytesIO(image_bytes))
