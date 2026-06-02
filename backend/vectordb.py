@@ -1,4 +1,5 @@
 import sys
+import uuid
 from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
@@ -11,10 +12,22 @@ from sentence_transformers import SentenceTransformer
 
 COLLECTION_NAME = "distribution_exam_questions"
 EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+# 절대 경로로 고정 (실행 위치와 무관하게 동작)
+_DEFAULT_CHROMA_DIR = str(Path(__file__).resolve().parent.parent / "database" / "chroma_db")
+
+
+def _make_id(q: dict) -> str:
+    """ID 없는 문제에 연도-회차-번호 기반 ID 생성."""
+    year = q.get("year", 0)
+    round_ = q.get("round", 0)
+    q_num = q.get("question_num", 0)
+    if year and round_ and q_num:
+        return f"dist_{year}_{round_}_{q_num:03d}"
+    return f"dist_{uuid.uuid4().hex[:12]}"
 
 
 class VectorDBManager:
-    def __init__(self, persist_dir: str = "./database/chroma_db"):
+    def __init__(self, persist_dir: str = _DEFAULT_CHROMA_DIR):
         self._persist_dir = persist_dir
         self._client: Optional[chromadb.PersistentClient] = None
         self._collection: Optional[chromadb.Collection] = None
@@ -70,7 +83,7 @@ class VectorDBManager:
         collection = self.get_collection()
 
         texts = [q["question_text"] for q in questions]
-        ids = [str(q["id"]) for q in questions]
+        ids = [str(q["id"]) if "id" in q else _make_id(q) for q in questions]
 
         metadatas = []
         for q in questions:

@@ -1,6 +1,12 @@
 import os
+import warnings
 from contextlib import asynccontextmanager
 from pathlib import Path
+
+# ChromaDB 텔레메트리 및 HuggingFace 심링크 경고 억제
+os.environ.setdefault("ANONYMIZED_TELEMETRY", "False")
+os.environ.setdefault("HF_HUB_DISABLE_SYMLINKS_WARNING", "1")
+warnings.filterwarnings("ignore", category=UserWarning, module="huggingface_hub")
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

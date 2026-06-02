@@ -1,9 +1,12 @@
+from pathlib import Path
 from sqlalchemy import Column, Integer, String, Text, Float, DateTime
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import DeclarativeBase, sessionmaker
 from datetime import datetime
 
-DATABASE_URL = "sqlite+aiosqlite:///./database/questions.db"
+# 절대 경로: database/questions.db (실행 위치와 무관)
+_DB_PATH = Path(__file__).resolve().parent / "questions.db"
+DATABASE_URL = f"sqlite+aiosqlite:///{_DB_PATH}"
 
 engine = create_async_engine(DATABASE_URL, echo=False)
 AsyncSessionLocal = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
