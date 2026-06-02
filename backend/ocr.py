@@ -62,11 +62,17 @@ class OCRProcessor:
 
     async def _process_with_vision(self, image_bytes: bytes) -> OCRResult:
         from google.cloud import vision
+        # 지역 변수로 캡처: 클로저 안에서도 non-None 타입으로 좁혀짐
+        client = self._vision_client
+        assert client is not None
         loop = asyncio.get_running_loop()
 
         def _call():
-            img = vision.Image(content=image_bytes)
-            response = self._vision_client.text_detection(image=img)
+            request = vision.AnnotateImageRequest(
+                image=vision.Image(content=image_bytes),
+                features=[vision.Feature(type_=vision.Feature.Type.TEXT_DETECTION)],
+            )
+            response = client.annotate_image(request=request)
             if response.error.message:
                 raise RuntimeError(f"Google Vision API error: {response.error.message}")
             return response
