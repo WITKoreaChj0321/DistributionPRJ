@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>유통관리사 오답 분석기</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- ===== HEADER ===== -->
+  <header class="site-header">
+    <div class="container">
+      <div class="header-inner">
+        <div class="logo">
+          <span class="logo-icon">&#128218;</span>
+          <span class="logo-text">유통관리사 오답 분석기</span>
+        </div>
+        <p class="header-desc">시험지 사진 한 장으로 오답을 분석하고 유사 기출문제를 카카오톡으로 받아보세요</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="main-content">
+    <div class="container">
+
+      <!-- ===== STEP INDICATOR ===== -->
+      <div class="step-indicator">
+        <div class="step active" id="step-1">
+          <span class="step-num">1</span>
+          <span class="step-label">사진 업로드</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-2">
+          <span class="step-num">2</span>
+          <span class="step-label">카카오 연동</span>
+        </div>
+        <div class="step-line"></div>
+        <div class="step" id="step-3">
+          <span class="step-num">3</span>
+          <span class="step-label">결과 확인</span>
+        </div>
+      </div>
+
+      <!-- ===== SECTION 1: UPLOAD ===== -->
+      <section class="card section-upload" id="section-upload">
+        <h2 class="section-title">
+          <span class="section-num">1</span>
+          시험지 사진 업로드
+        </h2>
+        <p class="section-desc">시험지 또는 답안지 사진을 업로드하면 AI가 오답을 자동으로 분석합니다.</p>
+
+        <div class="upload-area" id="upload-area">
+          <input type="file" id="file-input" accept="image/*" hidden />
+          <div class="upload-placeholder" id="upload-placeholder">
+            <div class="upload-icon">&#128247;</div>
+            <p class="upload-main-text">사진을 드래그하거나 클릭해서 업로드</p>
+            <p class="upload-sub-text">JPG, PNG, HEIC 지원 · 최대 20MB</p>
+            <button class="btn btn-outline" type="button" id="upload-btn">파일 선택</button>
+          </div>
+          <div class="upload-preview hidden" id="upload-preview">
+            <img id="preview-img" src="" alt="업로드된 시험지 미리보기" />
+            <div class="preview-overlay">
+              <button class="btn btn-sm btn-outline-white" id="change-file-btn" type="button">사진 변경</button>
+            </div>
+            <div class="preview-info" id="preview-info"></div>
+          </div>
+        </div>
+
+        <div class="upload-actions">
+          <button class="btn btn-primary btn-lg" id="analyze-btn" disabled>
+            <span class="btn-text">오답 분석 시작</span>
+            <span class="btn-icon">&#9658;</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- ===== SECTION 2: KAKAO ===== -->
+      <section class="card section-kakao hidden" id="section-kakao">
+        <h2 class="section-title">
+          <span class="section-num">2</span>
+          카카오톡 연동
+        </h2>
+        <p class="section-desc">분석 결과와 유사 기출문제를 카카오톡으로 받아볼 수 있습니다.</p>
+
+        <div class="kakao-login-area" id="kakao-login-area">
+          <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button">
+            <span class="kakao-icon">&#128172;</span>
+            카카오 로그인
+          </button>
+          <p class="kakao-hint">카카오 계정으로 로그인하면 나 또는 친구에게 결과를 전송할 수 있습니다.</p>
+        </div>
+
+        <div class="kakao-friend-area hidden" id="kakao-friend-area">
+          <div class="kakao-user-info" id="kakao-user-info">
+            <div class="user-avatar" id="user-avatar">&#128100;</div>
+            <div class="user-details">
+              <span class="user-name" id="user-name">사용자</span>
+              <span class="user-logged-in">로그인됨</span>
+            </div>
+            <button class="btn btn-sm btn-ghost" id="kakao-logout-btn" type="button">로그아웃</button>
+          </div>
+
+          <div class="friend-select-wrap">
+            <label class="form-label" for="friend-select">전송 대상 선택</label>
+            <div class="select-wrap">
+              <select class="form-select" id="friend-select">
+                <option value="">친구를 선택하세요</option>
+                <option value="me">나에게 보내기</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-kakao btn-lg" id="send-kakao-btn" type="button" disabled>
+            <span class="kakao-icon">&#128172;</span>
+            카카오톡으로 전송
+          </button>
+        </div>
+
+        <div class="skip-wrap">
+          <button class="btn btn-ghost" id="skip-kakao-btn" type="button">건너뛰고 결과만 보기</button>
+        </div>
+      </section>
+
+      <!-- ===== SECTION 3: PROGRESS ===== -->
+      <section class="card section-progress hidden" id="section-progress">
+        <h2 class="section-title">
+          <span class="section-num">&#9881;</span>
+          분석 중...
+        </h2>
+        <div class="progress-wrap">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progress-fill"></div>
+          </div>
+          <p class="progress-status" id="progress-status">이미지를 분석하고 있습니다...</p>
+          <div class="progress-steps">
+            <div class="prog-step active" id="prog-ocr">
+              <span class="prog-step-icon">&#128269;</span>
+              <span>문자 인식 (OCR)</span>
+            </div>
+            <div class="prog-step" id="prog-detect">
+              <span class="prog-step-icon">&#10060;</span>
+              <span>오답 탐지</span>
+            </div>
+            <div class="prog-step" id="prog-similar">
+              <span class="prog-step-icon">&#128196;</span>
+              <span>유사 문제 검색</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===== SECTION 4: RESULTS ===== -->
+      <section class="card section-results hidden" id="section-results">
+        <h2 class="section-title">
+          <span class="section-num">3</span>
+          분석 결과
+        </h2>
+
+        <!-- 요약 배너 -->
+        <div class="result-summary" id="result-summary">
+          <div class="summary-item">
+            <span class="summary-num" id="wrong-count">0</span>
+            <span class="summary-label">오답 수</span>
+          </div>
+          <div class="summary-divider"></div>
+          <div class="summary-item">
+            <span class="summary-num" id="similar-count">0</span>
+            <span class="summary-label">유사 기출문제</span>
+          </div>
+        </div>
+
+        <!-- 오답 목록 -->
+        <div class="result-block" id="wrong-block">
+          <h3 class="block-title">
+            <span class="block-icon">&#10060;</span>
+            틀린 문제
+          </h3>
+          <div class="wrong-list" id="wrong-list">
+            <!-- JS에서 동적 생성 -->
+          </div>
+        </div>
+
+        <!-- 유사 기출문제 -->
+        <div class="result-block" id="similar-block">
+          <h3 class="block-title">
+            <span class="block-icon">&#128196;</span>
+            유사 기출문제
+          </h3>
+          <div class="similar-list" id="similar-list">
+            <!-- JS에서 동적 생성 -->
+          </div>
+        </div>
+
+        <!-- 재전송 / 다시하기 -->
+        <div class="result-actions">
+          <button class="btn btn-kakao" id="resend-kakao-btn" type="button">
+            <span class="kakao-icon">&#128172;</span>
+            카카오톡으로 전송
+          </button>
+          <button class="btn btn-outline" id="restart-btn" type="button">새로 분석하기</button>
+        </div>
+      </section>
+
+      <!-- ===== TOAST ===== -->
+      <div class="toast hidden" id="toast">
+        <span class="toast-icon" id="toast-icon"></span>
+        <span class="toast-msg" id="toast-msg"></span>
+      </div>
+
+    </div><!-- .container -->
+  </main>
+
+  <!-- ===== FOOTER ===== -->
+  <footer class="site-footer">
+    <div class="container">
+      <p>&copy; 2025 유통관리사 오답 분석기 &nbsp;|&nbsp; 본 서비스는 학습 보조 목적으로 제공됩니다.</p>
+    </div>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+*.so
+
+# 가상환경
+env/
+venv/
+.venv/
+ENV/
+
+# 환경변수 (절대 커밋 금지)
+.env
+.env.local
+.env.*.local
+
+# 인증 자격증명 (절대 커밋 금지)
+credentials/*.json
+credentials/*.p12
+credentials/*.pem
+
+# 런타임 생성 DB (배포 시 생성됨)
+database/questions.db
+database/chroma_db/
+
+# 로그
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# 캐시
+.cache/
+*.cache
+
+# Playwright
+playwright-report/
+test-results/
