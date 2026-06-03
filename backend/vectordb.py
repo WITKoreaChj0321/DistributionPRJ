@@ -170,8 +170,8 @@ class VectorDBManager:
 
         for doc_id, doc, meta, dist in zip(ids, docs, metas, distances):
             similarity = 1.0 - float(dist)  # cosine distance → similarity
-            options_raw = meta.get("options", "")
-            options = [o for o in options_raw.split("\n") if o] if options_raw else []
+            options_raw = str(meta.get("options") or "")
+            options = [o for o in options_raw.split("\n") if o]
 
             output.append({
                 "id": doc_id,
