@@ -43,12 +43,15 @@ async def kakao_login(request: Request) -> RedirectResponse:
 
 @router.get("/auth/kakao/callback")
 async def kakao_callback(
-    code: str,
+    code: str = "",
     state: str = "",
     error: str = "",
     request: Request = None,
 ) -> RedirectResponse:
     """카카오 인증 코드를 받아 액세스 토큰을 발급하고 프론트엔드로 리다이렉트합니다."""
+    if not code and not error:
+        return RedirectResponse(url="/?error=missing_code")
+
     if error:
         return RedirectResponse(url=f"/?error={error}")
 
