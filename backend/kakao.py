@@ -226,7 +226,17 @@ class KakaoClient:
         if isinstance(ans, int) and 1 <= ans <= len(opts):
             ans_text = _re.sub(r'^\s*\d+[.)]\s*', '', str(opts[ans - 1])).strip()
 
-        parts = [f"{header}  {num}번 [{subj}]", ""]
+        # 연도·회차 (유사 기출문제에 존재)
+        year   = q.get("year")
+        round_ = q.get("round")
+        when = ""
+        if year:
+            when = f"{year}년"
+            if round_:
+                when += f" {round_}회"
+            when += " "
+
+        parts = [f"{header}  {when}{num}번 [{subj}]", ""]
         if body:
             parts.append(body)
             parts.append("")
