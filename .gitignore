@@ -30,6 +30,15 @@ credentials/*.pem
 database/questions.db
 database/chroma_db/
 
+# 기출문제 데이터 (저작권 보호 / 용량) — 형식 예시만 커밋
+data/questions/*.pdf
+data/questions/*.jpg
+data/questions/*.jpeg
+data/questions/*.png
+data/questions/*.json
+data/questions/*.csv
+!data/questions/format_example.json
+
 # 로그
 *.log
 logs/
