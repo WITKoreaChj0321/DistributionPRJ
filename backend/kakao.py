@@ -163,39 +163,46 @@ class KakaoClient:
 
     # ── 메시지 템플릿 ──────────────────────────────
 
+    _CIRCLE = {1: "①", 2: "②", 3: "③", 4: "④", 5: "⑤"}
+
+    def _ans_mark(self, ans) -> str:
+        if isinstance(ans, int):
+            return self._CIRCLE.get(ans, str(ans))
+        return str(ans) if ans not in (None, "", "-") else "?"
+
     def _build_message_template(
         self, wrong_qs: list[dict], similar_qs: list[dict]
     ) -> dict:
-        wrong_nums = ", ".join(
-            str(q.get("question_num", "?")) for q in wrong_qs
-        ) or "없음"
+        # 상세 텍스트 구성 (카카오 text 타입은 줄바꿈 지원, 약 200자 권장)
+        lines: list[str] = []
+        lines.append(f"❌ 틀린 문제 {len(wrong_qs)}개")
+        for q in wrong_qs[:6]:
+            num  = q.get("question_num", "?")
+            subj = q.get("subject", "")
+            ans  = self._ans_mark(q.get("correct_answer"))
+            lines.append(f"· {num}번 [{subj}] 정답 {ans}")
 
-        description = f"틀린 문제: {wrong_nums}번  |  유사 기출문제 {len(similar_qs)}개"
+        if similar_qs:
+            lines.append("")
+            lines.append(f"📖 추천 유사 기출 {len(similar_qs)}개")
+            for s in similar_qs[:4]:
+                yr   = s.get("year", "")
+                subj = s.get("subject", "")
+                num  = s.get("question_num", "")
+                pct  = round(s.get("similarity", 0) * 100)
+                lines.append(f"· {yr}년 {subj} {num}번 (유사 {pct}%)")
 
-        # 버튼: 유사 문제 최대 10개 (카카오 제한)
-        buttons = []
-        for i, q in enumerate(similar_qs[:10], 1):
-            subject = q.get("subject", "")
-            text    = q.get("question_text", "")[:28]
-            label   = f"Q{i}. [{subject}] {text}" if subject else f"Q{i}. {text}"
-            buttons.append({
-                "title": label,
-                "link":  {"web_url": "https://www.comcbt.com", "mobile_web_url": "https://www.comcbt.com"},
-            })
+        text = "📚 유통관리사 오답 분석 결과\n\n" + "\n".join(lines)
+        # 카카오 text 타입 최대 200자 → 초과 시 자르기
+        if len(text) > 195:
+            text = text[:192] + "..."
 
-        template: dict = {
-            "object_type": "feed",
-            "content": {
-                "title":       "📚 유통관리사 오답 분석 결과",
-                "description": description,
-                "image_url":   "https://developers.kakao.com/assets/img/about/logos/kakaolink/kakaolink_btn_medium.png",
-                "link": {
-                    "web_url":        "https://www.comcbt.com",
-                    "mobile_web_url": "https://www.comcbt.com",
-                },
+        return {
+            "object_type": "text",
+            "text": text,
+            "link": {
+                "web_url":        "https://witkoreachj0321.github.io/DistributionPRJ/",
+                "mobile_web_url": "https://witkoreachj0321.github.io/DistributionPRJ/",
             },
+            "button_title": "웹에서 전체 보기",
         }
-        if buttons:
-            template["buttons"] = buttons
-
-        return template
