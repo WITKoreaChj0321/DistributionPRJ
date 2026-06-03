@@ -82,11 +82,14 @@ let resultData     = null;
 
   if (token) {
     kakaoToken = token;
-    handleKakaoLoginSuccess({ nickname: '카카오 사용자', profile_image: '' });
+    handleKakaoLoginSuccess({
+      nickname:      params.get('nickname')      || '카카오 사용자',
+      profile_image: params.get('profile_image') || '',
+    });
     history.replaceState({}, '', window.location.pathname);
   }
   if (error) {
-    showToast('카카오 로그인에 실패했습니다.', 'error');
+    showToast('카카오 로그인에 실패했습니다: ' + (error || ''), 'error');
     history.replaceState({}, '', window.location.pathname);
   }
 })();

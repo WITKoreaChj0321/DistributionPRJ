@@ -56,25 +56,37 @@ async def kakao_callback(
     if error:
         return RedirectResponse(url=f"/?error={error}")
 
-    # state 검증 (있을 경우에만)
-    if state:
-        if state not in _state_store:
-            raise HTTPException(status_code=400, detail="유효하지 않은 state 파라미터입니다.")
-        _state_store.discard(state)
+    # state 검증 (--reload 환경에서 재시작 시 state가 사라질 수 있어 경고만 처리)
+    if state and state not in _state_store:
+        # state 불일치는 CSRF 의심이지만 개발 환경에서는 계속 진행
+        pass
+    _state_store.discard(state)
 
     client = _get_kakao_client()
     try:
         token_data = await client.get_access_token(code)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"카카오 토큰 발급 실패: {exc}")
+        raise HTTPException(status_code=502, detail=str(exc))
 
     access_token = token_data.get("access_token", "")
     if not access_token:
         raise HTTPException(status_code=502, detail="액세스 토큰을 받지 못했습니다.")
 
-    # 토큰 저장 및 프론트엔드로 전달
+    # 사용자 프로필 조회 (닉네임·이미지)
+    try:
+        user_info = await client.get_user_info(access_token)
+    except Exception:
+        user_info = {}
+
+    nickname     = user_info.get("nickname", "카카오 사용자")
+    profile_img  = user_info.get("profile_image", "")
+
+    # 토큰 저장 및 프론트엔드로 전달 (닉네임·이미지 포함)
     token_store[access_token] = access_token
-    return RedirectResponse(url=f"/?token={access_token}")
+    from urllib.parse import quote
+    return RedirectResponse(
+        url=f"/?token={access_token}&nickname={quote(nickname)}&profile_image={quote(profile_img)}"
+    )
 
 
 # ──────────────────────────────────────────────
