@@ -142,7 +142,8 @@
         </div>
 
         <div class="upload-actions">
-          <button class="btn btn-primary btn-lg" id="analyze-btn" disabled>
+          <button class="btn btn-primary btn-lg" id="analyze-btn" disabled
+                  onclick="if(window.runAnalysis){window.runAnalysis();}else{alert('스크립트 로딩 중입니다. 잠시 후 다시 시도해주세요.');}">
             <span class="btn-text">오답 분석 시작</span>
             <span class="btn-icon">&#9658;</span>
           </button>
@@ -245,6 +246,6 @@
     </div>
   </footer>
 
-  <script src="/static/app.js?v=3"></script>
+  <script src="/static/app.js?v=5"></script>
 </body>
 </html>

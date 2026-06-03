@@ -249,7 +249,7 @@ function formatBytes(bytes) {
 // ---------------------------------------------------------------
 // ANALYZE — Step 2 → 3
 // ---------------------------------------------------------------
-analyzeBtn.addEventListener('click', async () => {
+async function runAnalysis() {
   // window._selectedFile: onchange 인라인 핸들러가 설정한 폴백
   const fileToUpload = selectedFile || window._selectedFile || null;
   if (!fileToUpload) {
@@ -259,7 +259,8 @@ analyzeBtn.addEventListener('click', async () => {
   selectedFile = fileToUpload;
   try {
     analyzeBtn.disabled = true;
-    analyzeBtn.querySelector('.btn-text').textContent = '전송 중...';
+    const btnText = analyzeBtn.querySelector('.btn-text');
+    if (btnText) btnText.textContent = '전송 중...';
 
     const formData = new FormData();
     formData.append('image', selectedFile);
@@ -285,9 +286,15 @@ analyzeBtn.addEventListener('click', async () => {
   } catch (err) {
     showToast(err.message || '업로드에 실패했습니다.', 'error');
     analyzeBtn.disabled = false;
-    analyzeBtn.querySelector('.btn-text').textContent = '오답 분석 시작';
+    const btnText = analyzeBtn.querySelector('.btn-text');
+    if (btnText) btnText.textContent = '오답 분석 시작';
   }
-});
+}
+
+// 전역 노출 (인라인 onclick 백업용)
+window.runAnalysis = runAnalysis;
+
+analyzeBtn.addEventListener('click', runAnalysis);
 
 // ---------------------------------------------------------------
 // POLLING — Step 3
