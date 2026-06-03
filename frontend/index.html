@@ -50,42 +50,49 @@
         </h2>
         <p class="section-desc">로그인하면 분석 결과를 카카오톡으로 전송할 수 있습니다.</p>
 
+        <!-- 미로그인 상태 -->
         <div class="kakao-login-area" id="kakao-login-area">
           <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button">
             <span class="kakao-icon">&#128172;</span>
             카카오 로그인
           </button>
-          <p class="kakao-hint">카카오 계정으로 로그인하면 나 또는 친구에게 결과를 전송할 수 있습니다.</p>
+          <p class="kakao-hint">로그인 후 분석이 끝나면 결과를 자동으로 전송합니다.</p>
         </div>
 
+        <!-- 로그인 완료 상태 -->
         <div class="kakao-friend-area hidden" id="kakao-friend-area">
           <div class="kakao-user-info" id="kakao-user-info">
             <div class="user-avatar" id="user-avatar">&#128100;</div>
             <div class="user-details">
               <span class="user-name" id="user-name">사용자</span>
-              <span class="user-logged-in">로그인됨</span>
+              <span class="user-logged-in">로그인됨 — 분석 후 자동 전송</span>
             </div>
             <button class="btn btn-sm btn-ghost" id="kakao-logout-btn" type="button">로그아웃</button>
           </div>
-
+          <!-- 전송 대상 선택 (결과 화면에서도 사용) -->
           <div class="friend-select-wrap">
-            <label class="form-label" for="friend-select">전송 대상 선택</label>
+            <label class="form-label" for="friend-select">전송 대상</label>
             <div class="select-wrap">
               <select class="form-select" id="friend-select">
                 <option value="me">나에게 보내기</option>
               </select>
             </div>
           </div>
+        </div>
 
-          <button class="btn btn-primary btn-lg" id="send-kakao-btn" type="button">
-            업로드 시작 &#9658;
+        <!-- 항상 표시: 업로드로 이동 버튼 -->
+        <div style="margin-top:24px; display:flex; flex-direction:column; gap:10px;">
+          <button class="btn btn-primary btn-lg" id="go-upload-btn" type="button">
+            사진 업로드하기 &#9658;
+          </button>
+          <button class="btn btn-ghost" id="skip-kakao-btn" type="button">
+            로그인 없이 계속하기
           </button>
         </div>
-
-        <div class="skip-wrap">
-          <button class="btn btn-ghost" id="skip-kakao-btn" type="button">건너뛰고 바로 업로드하기</button>
-        </div>
       </section>
+
+      <!-- 숨겨진 호환성용 더미 (app.js getElementById 오류 방지) -->
+      <span id="send-kakao-btn" style="display:none"></span>
 
       <!-- ===== SECTION 2: UPLOAD ===== -->
       <section class="card section-upload hidden" id="section-upload">

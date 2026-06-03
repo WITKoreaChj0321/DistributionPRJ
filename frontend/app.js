@@ -35,7 +35,8 @@ const kakaoFriendArea = document.getElementById('kakao-friend-area');
 const kakaoLoginBtn   = document.getElementById('kakao-login-btn');
 const kakaoLogoutBtn  = document.getElementById('kakao-logout-btn');
 const skipKakaoBtn    = document.getElementById('skip-kakao-btn');
-const sendKakaoBtn    = document.getElementById('send-kakao-btn');   // "업로드 시작" 버튼
+const goUploadBtn     = document.getElementById('go-upload-btn');    // "사진 업로드하기" 버튼
+const sendKakaoBtn    = document.getElementById('send-kakao-btn');   // 더미 (호환성)
 const resendKakaoBtn  = document.getElementById('resend-kakao-btn');
 const restartBtn      = document.getElementById('restart-btn');
 const friendSelect    = document.getElementById('friend-select');
@@ -152,25 +153,17 @@ function handleKakaoLoginSuccess(userInfo) {
   kakaoFriendArea.classList.remove('hidden');
 
   loadFriends();
-  showToast(`${userInfo.nickname || '사용자'}님 환영합니다!`, 'success');
+  showToast(`${userInfo.nickname || '사용자'}님 환영합니다! 이제 사진을 업로드하세요.`, 'success');
+}
 
-  // 로그인 성공 → 업로드 단계로 이동
+// "사진 업로드하기" / "로그인 없이 계속하기" → 업로드 단계
+function goToUpload() {
   showSection('upload');
   setStep(2);
 }
 
-// "건너뛰고 바로 업로드하기" / "업로드 시작" → 업로드 단계
-skipKakaoBtn.addEventListener('click', () => {
-  showSection('upload');
-  setStep(2);
-});
-
-if (sendKakaoBtn) {
-  sendKakaoBtn.addEventListener('click', () => {
-    showSection('upload');
-    setStep(2);
-  });
-}
+goUploadBtn.addEventListener('click',  goToUpload);
+skipKakaoBtn.addEventListener('click', goToUpload);
 
 // ---------------------------------------------------------------
 // LOAD FRIENDS
