@@ -154,7 +154,11 @@ def save_to_chroma(
     return len(ids)
 
 
-async def run_init(use_sample: bool, crawl_range: tuple[int, int] | None):
+async def run_init(
+    use_sample: bool,
+    crawl_range: tuple[int, int] | None,
+    folder: str | None,
+):
     """메인 초기화 로직."""
     print("=" * 60)
     print("유통관리사 기출문제 DB 초기화")
@@ -172,11 +176,18 @@ async def run_init(use_sample: bool, crawl_range: tuple[int, int] | None):
 
     # 3. 데이터 수집
     print("\n[3/4] 데이터 수집 중...")
-    raw_questions: list[dict] = []
+    questions: list[dict] = []
 
-    if use_sample:
+    if folder:
+        from crawler.file_loader import load_from_folder
+        questions = load_from_folder(folder)
+
+    elif use_sample:
         raw_questions = load_sample_data()
         print(f"      샘플 데이터 {len(raw_questions)}문제 로드됨")
+        processor = QuestionProcessor(verbose=True)
+        questions = processor.process(raw_questions)
+
     elif crawl_range:
         start_year, end_year = crawl_range
         print(f"      {start_year}~{end_year}년 크롤링 시작...")
@@ -187,13 +198,16 @@ async def run_init(use_sample: bool, crawl_range: tuple[int, int] | None):
             print("      크롤링 결과 없음. 샘플 데이터로 대체합니다.")
             raw_questions = load_sample_data()
         print(f"      크롤링 완료: {len(raw_questions)}문제")
+        processor = QuestionProcessor(verbose=True)
+        questions = processor.process(raw_questions)
 
-    # 데이터 정제
-    processor = QuestionProcessor(verbose=True)
-    questions = processor.process(raw_questions)
-    print(f"      정제 후: {len(questions)}문제")
+    print(f"      최종 적재 대상: {len(questions)}문제")
 
     # 4. 임베딩 모델 로드 및 저장
+    if not questions:
+        print("\n저장할 문제가 없습니다. 종료합니다.")
+        return
+
     print(f"\n[4/4] 임베딩 모델 로드 중... ({EMBEDDING_MODEL})")
     model = SentenceTransformer(EMBEDDING_MODEL)
 
@@ -212,23 +226,40 @@ def main():
     parser = argparse.ArgumentParser(description="유통관리사 기출문제 DB 초기화")
     group = parser.add_mutually_exclusive_group(required=False)
     group.add_argument(
+        "--from-folder",
+        metavar="FOLDER",
+        nargs="?",
+        const="data/questions",
+        help="폴더에서 JSON/CSV 파일 로드 (기본: data/questions)",
+    )
+    group.add_argument(
         "--use-sample",
         action="store_true",
-        help="샘플 데이터로 초기화 (기본값, 테스트/개발용)",
+        help="내장 샘플 데이터 20문제로 초기화 (테스트용)",
     )
     group.add_argument(
         "--crawl",
         nargs=2,
         type=int,
         metavar=("START_YEAR", "END_YEAR"),
-        help="지정 연도 범위 크롤링 후 초기화 (예: --crawl 2015 2024)",
+        help="지정 연도 범위 크롤링 (예: --crawl 2015 2024)",
     )
     args = parser.parse_args()
 
-    # 인자 없이 실행하면 --use-sample 기본 동작
-    use_sample = args.use_sample or (args.crawl is None)
+    # 인자 없으면 data/questions 폴더 우선, 없으면 샘플
+    folder = args.from_folder
+    if folder is None and not args.use_sample and not args.crawl:
+        default_folder = Path(__file__).parent.parent / "data" / "questions"
+        has_files = any(
+            f.suffix in (".json", ".csv")
+            for f in default_folder.iterdir()
+            if not f.name.startswith((".", "format_example"))
+        ) if default_folder.exists() else False
+        folder = str(default_folder) if has_files else None
+
+    use_sample = args.use_sample or (folder is None and not args.crawl)
     crawl_range = tuple(args.crawl) if args.crawl else None
-    asyncio.run(run_init(use_sample=use_sample, crawl_range=crawl_range))
+    asyncio.run(run_init(use_sample=use_sample, crawl_range=crawl_range, folder=folder))
 
 
 if __name__ == "__main__":
