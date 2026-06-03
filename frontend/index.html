@@ -104,21 +104,25 @@
         </h2>
         <p class="section-desc">시험지 또는 답안지 사진을 업로드하면 AI가 오답을 자동으로 분석합니다.</p>
 
-        <div class="upload-area" id="upload-area">
-          <input type="file" id="file-input" accept="image/*" hidden />
+        <!-- file-input을 label로 감싸서 JS 없이도 클릭 동작 -->
+        <input type="file" id="file-input" accept="image/*" style="display:none" />
+
+        <label class="upload-area" id="upload-area" for="file-input">
           <div class="upload-placeholder" id="upload-placeholder">
             <div class="upload-icon">&#128247;</div>
-            <p class="upload-main-text">사진을 드래그하거나 클릭해서 업로드</p>
+            <p class="upload-main-text">클릭하거나 사진을 드래그해서 업로드</p>
             <p class="upload-sub-text">JPG, PNG, HEIC 지원 · 최대 20MB</p>
-            <button class="btn btn-outline" type="button" id="upload-btn">파일 선택</button>
+            <span class="btn btn-outline" id="upload-btn" style="pointer-events:none;">파일 선택</span>
           </div>
           <div class="upload-preview hidden" id="upload-preview">
             <img id="preview-img" src="" alt="업로드된 시험지 미리보기" />
-            <div class="preview-overlay">
-              <button class="btn btn-sm btn-outline-white" id="change-file-btn" type="button">사진 변경</button>
-            </div>
             <div class="preview-info" id="preview-info"></div>
           </div>
+        </label>
+
+        <!-- 사진 변경: label 외부에 배치 (label 중첩 불가) -->
+        <div id="change-wrap" class="hidden" style="text-align:right; margin-top:6px;">
+          <label class="btn btn-sm btn-outline" for="file-input" id="change-file-btn">사진 변경</label>
         </div>
 
         <div class="upload-actions">

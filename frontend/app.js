@@ -187,28 +187,10 @@ async function loadFriends() {
 
 // ---------------------------------------------------------------
 // FILE UPLOAD — Step 2
+// upload-area 가 <label for="file-input"> 이므로
+// 클릭 시 브라우저가 자동으로 파일 다이얼로그를 엶 (JS 불필요)
 // ---------------------------------------------------------------
-// 업로드 영역 클릭
-uploadArea.addEventListener('click', (e) => {
-  // 사진 변경 버튼 클릭은 별도 처리
-  if (changeFileBtn && (e.target === changeFileBtn || changeFileBtn.contains(e.target))) return;
-  console.log('[DEBUG] uploadArea clicked');
-  fileInput.click();
-});
-
-// 파일 선택 버튼
-uploadBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  console.log('[DEBUG] uploadBtn clicked');
-  fileInput.click();
-});
-
-// 사진 변경 버튼
-changeFileBtn.addEventListener('click', (e) => {
-  e.stopPropagation();
-  console.log('[DEBUG] changeFileBtn clicked');
-  fileInput.click();
-});
+// Drag & Drop 은 JS 필요 — label 기본 클릭 동작은 유지
 
 // 파일 선택 완료
 fileInput.addEventListener('change', () => {
@@ -249,6 +231,9 @@ function handleFile(file) {
     previewInfo.textContent = `${file.name} · ${formatBytes(file.size)}`;
     uploadPlaceholder.classList.add('hidden');
     uploadPreview.classList.remove('hidden');
+    // 사진 변경 버튼 표시
+    const changeWrap = document.getElementById('change-wrap');
+    if (changeWrap) changeWrap.classList.remove('hidden');
     analyzeBtn.disabled = false;
     console.log('[DEBUG] 파일 미리보기 완료, 분석 버튼 활성화');
   };
@@ -501,6 +486,8 @@ restartBtn.addEventListener('click', () => {
   previewInfo.textContent  = '';
   uploadPlaceholder.classList.remove('hidden');
   uploadPreview.classList.add('hidden');
+  const changeWrap = document.getElementById('change-wrap');
+  if (changeWrap) changeWrap.classList.add('hidden');
   analyzeBtn.disabled = true;
   analyzeBtn.querySelector('.btn-text').textContent = '오답 분석 시작';
   wrongList.innerHTML    = '';
