@@ -95,11 +95,52 @@ DEBUG=true
 - [ ] 동의항목 → `friends`, `talk_message` 활성화
 - [ ] 테스트 친구 등록 (개발 단계에서 필수)
 
-## 서버 실행
-```bash
+## 실행 순서
+
+### 1. 최초 1회 — 환경 설정 & 패키지 설치
+```powershell
+cd C:/APP_Workspace/유통관리사-helper
+copy .env.example .env          # 환경변수 파일 생성 (카카오 키 등 입력)
+python -m pip install -r requirements.txt
+```
+
+### 2. DB 초기화 (최초 1회 / 기출문제 추가 시)
+```powershell
+# data/questions/ 폴더에 PDF·JSON·CSV 파일을 넣은 후 실행
+python scripts/init_db.py
+
+# 기존 DB를 비우고 새로 적재하려면
+Remove-Item -Recurse -Force database/chroma_db -ErrorAction SilentlyContinue
+Remove-Item -Force database/questions.db -ErrorAction SilentlyContinue
+python scripts/init_db.py
+```
+
+### 3. 서버 실행
+```powershell
 cd C:/APP_Workspace/유통관리사-helper
 python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
 ```
+> `Application startup complete.` 출력 시 준비 완료
+
+### 4. 브라우저 접속
+```
+http://localhost:8000
+```
+
+### 포트 충돌 시 (WinError 10013)
+```powershell
+# 8000 포트 점유 프로세스 종료
+taskkill /IM python.exe /F
+# 또는 다른 포트로 실행
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8001 --reload
+```
+
+### 2회차 이후 — 서버만 실행
+```powershell
+cd C:/APP_Workspace/유통관리사-helper
+python -m uvicorn backend.main:app --host 0.0.0.0 --port 8000 --reload
+```
+> DB가 이미 있으면 시작 시 자동으로 건너뜀
 
 ## 의존성
 ```
