@@ -7,6 +7,8 @@ import asyncio
 from typing import Optional
 
 import chromadb
+from chromadb import Collection, Embeddings
+from chromadb.api import ClientAPI
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
 
@@ -29,34 +31,39 @@ def _make_id(q: dict) -> str:
 class VectorDBManager:
     def __init__(self, persist_dir: str = _DEFAULT_CHROMA_DIR):
         self._persist_dir = persist_dir
-        self._client: Optional[chromadb.PersistentClient] = None
-        self._collection: Optional[chromadb.Collection] = None
+        self._client: Optional[ClientAPI] = None
+        self._collection: Optional[Collection] = None
         self._embedder: Optional[SentenceTransformer] = None
 
-    def _get_client(self) -> chromadb.PersistentClient:
-        if self._client is None:
+    def _get_client(self) -> ClientAPI:
+        client = self._client
+        if client is None:
             Path(self._persist_dir).mkdir(parents=True, exist_ok=True)
-            self._client = chromadb.PersistentClient(
+            client = chromadb.PersistentClient(
                 path=self._persist_dir,
                 settings=Settings(anonymized_telemetry=False),
             )
-        return self._client
+            self._client = client
+        return client
 
-    def get_collection(self) -> chromadb.Collection:
-        if self._collection is None:
-            client = self._get_client()
-            self._collection = client.get_or_create_collection(
+    def get_collection(self) -> Collection:
+        col = self._collection
+        if col is None:
+            col = self._get_client().get_or_create_collection(
                 name=COLLECTION_NAME,
                 metadata={"hnsw:space": "cosine"},
             )
-        return self._collection
+            self._collection = col
+        return col
 
     def _get_embedder(self) -> SentenceTransformer:
-        if self._embedder is None:
-            self._embedder = SentenceTransformer(EMBEDDING_MODEL)
-        return self._embedder
+        embedder = self._embedder
+        if embedder is None:
+            embedder = SentenceTransformer(EMBEDDING_MODEL)
+            self._embedder = embedder
+        return embedder
 
-    def _embed(self, texts: list[str]) -> list[list[float]]:
+    def _embed(self, texts: list[str]) -> Embeddings:
         embedder = self._get_embedder()
         vectors = embedder.encode(texts, convert_to_numpy=True)
         return vectors.tolist()
@@ -156,10 +163,10 @@ class VectorDBManager:
                 return []
 
         output: list[dict] = []
-        ids = results.get("ids", [[]])[0]
-        docs = results.get("documents", [[]])[0]
-        metas = results.get("metadatas", [[]])[0]
-        distances = results.get("distances", [[]])[0]
+        ids       = (results.get("ids")       or [[]])[0]
+        docs      = (results.get("documents") or [[]])[0]
+        metas     = (results.get("metadatas") or [[]])[0]
+        distances = (results.get("distances") or [[]])[0]
 
         for doc_id, doc, meta, dist in zip(ids, docs, metas, distances):
             similarity = 1.0 - float(dist)  # cosine distance → similarity
