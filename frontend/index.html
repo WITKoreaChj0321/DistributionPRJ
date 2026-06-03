@@ -28,12 +28,12 @@
       <div class="step-indicator">
         <div class="step active" id="step-1">
           <span class="step-num">1</span>
-          <span class="step-label">사진 업로드</span>
+          <span class="step-label">카카오 연동</span>
         </div>
         <div class="step-line"></div>
         <div class="step" id="step-2">
           <span class="step-num">2</span>
-          <span class="step-label">카카오 연동</span>
+          <span class="step-label">사진 업로드</span>
         </div>
         <div class="step-line"></div>
         <div class="step" id="step-3">
@@ -42,8 +42,53 @@
         </div>
       </div>
 
-      <!-- ===== SECTION 1: UPLOAD ===== -->
-      <section class="card section-upload" id="section-upload">
+      <!-- ===== SECTION 1: KAKAO ===== -->
+      <section class="card section-kakao" id="section-kakao">
+        <h2 class="section-title">
+          <span class="section-num">1</span>
+          카카오톡 연동 <span style="font-size:.8rem;font-weight:400;color:#94A3B8;">(선택)</span>
+        </h2>
+        <p class="section-desc">로그인하면 분석 결과를 카카오톡으로 전송할 수 있습니다.</p>
+
+        <div class="kakao-login-area" id="kakao-login-area">
+          <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button">
+            <span class="kakao-icon">&#128172;</span>
+            카카오 로그인
+          </button>
+          <p class="kakao-hint">카카오 계정으로 로그인하면 나 또는 친구에게 결과를 전송할 수 있습니다.</p>
+        </div>
+
+        <div class="kakao-friend-area hidden" id="kakao-friend-area">
+          <div class="kakao-user-info" id="kakao-user-info">
+            <div class="user-avatar" id="user-avatar">&#128100;</div>
+            <div class="user-details">
+              <span class="user-name" id="user-name">사용자</span>
+              <span class="user-logged-in">로그인됨</span>
+            </div>
+            <button class="btn btn-sm btn-ghost" id="kakao-logout-btn" type="button">로그아웃</button>
+          </div>
+
+          <div class="friend-select-wrap">
+            <label class="form-label" for="friend-select">전송 대상 선택</label>
+            <div class="select-wrap">
+              <select class="form-select" id="friend-select">
+                <option value="me">나에게 보내기</option>
+              </select>
+            </div>
+          </div>
+
+          <button class="btn btn-primary btn-lg" id="send-kakao-btn" type="button">
+            업로드 시작 &#9658;
+          </button>
+        </div>
+
+        <div class="skip-wrap">
+          <button class="btn btn-ghost" id="skip-kakao-btn" type="button">건너뛰고 바로 업로드하기</button>
+        </div>
+      </section>
+
+      <!-- ===== SECTION 2: UPLOAD ===== -->
+      <section class="card section-upload hidden" id="section-upload">
         <h2 class="section-title">
           <span class="section-num">1</span>
           시험지 사진 업로드
@@ -72,53 +117,6 @@
             <span class="btn-text">오답 분석 시작</span>
             <span class="btn-icon">&#9658;</span>
           </button>
-        </div>
-      </section>
-
-      <!-- ===== SECTION 2: KAKAO ===== -->
-      <section class="card section-kakao hidden" id="section-kakao">
-        <h2 class="section-title">
-          <span class="section-num">2</span>
-          카카오톡 연동
-        </h2>
-        <p class="section-desc">분석 결과와 유사 기출문제를 카카오톡으로 받아볼 수 있습니다.</p>
-
-        <div class="kakao-login-area" id="kakao-login-area">
-          <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button">
-            <span class="kakao-icon">&#128172;</span>
-            카카오 로그인
-          </button>
-          <p class="kakao-hint">카카오 계정으로 로그인하면 나 또는 친구에게 결과를 전송할 수 있습니다.</p>
-        </div>
-
-        <div class="kakao-friend-area hidden" id="kakao-friend-area">
-          <div class="kakao-user-info" id="kakao-user-info">
-            <div class="user-avatar" id="user-avatar">&#128100;</div>
-            <div class="user-details">
-              <span class="user-name" id="user-name">사용자</span>
-              <span class="user-logged-in">로그인됨</span>
-            </div>
-            <button class="btn btn-sm btn-ghost" id="kakao-logout-btn" type="button">로그아웃</button>
-          </div>
-
-          <div class="friend-select-wrap">
-            <label class="form-label" for="friend-select">전송 대상 선택</label>
-            <div class="select-wrap">
-              <select class="form-select" id="friend-select">
-                <option value="">친구를 선택하세요</option>
-                <option value="me">나에게 보내기</option>
-              </select>
-            </div>
-          </div>
-
-          <button class="btn btn-kakao btn-lg" id="send-kakao-btn" type="button" disabled>
-            <span class="kakao-icon">&#128172;</span>
-            카카오톡으로 전송
-          </button>
-        </div>
-
-        <div class="skip-wrap">
-          <button class="btn btn-ghost" id="skip-kakao-btn" type="button">건너뛰고 결과만 보기</button>
         </div>
       </section>
 
