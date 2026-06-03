@@ -11,10 +11,10 @@ from backend.vectordb import VectorDBManager
 SIMILARITY_THRESHOLD = 0.5
 
 
-def _option_overlap_bonus(wrong_opts: list[str], candidate_opts: list[str]) -> float:
+def _option_overlap_bonus(wrong_opts, candidate_opts) -> float:
     """5지 선다 보기 중 동일 텍스트 중복 수에 따른 유사도 보정값."""
-    w = {o.strip() for o in wrong_opts if o.strip()}
-    c = {o.strip() for o in candidate_opts if o.strip()}
+    w = {o.strip() for o in (wrong_opts or []) if o and o.strip()}
+    c = {o.strip() for o in (candidate_opts or []) if o and o.strip()}
     overlap = len(w & c)
     if overlap == 0: return 0.0
     if overlap == 1: return 0.03
@@ -70,7 +70,7 @@ class SimilarQuestionSearcher:
 
         # 보기 중복 보정: 동일 보기 1개 이상 → 비슷한 유형으로 가중치 부여
         # wq.options 는 OCR 파이프라인에서 추출된 경우에만 존재
-        wrong_opts: list[str] = getattr(wq, "options", [])
+        wrong_opts = getattr(wq, "options", None) or []
         adjusted: list[dict] = []
         for c in candidates:
             bonus = _option_overlap_bonus(wrong_opts, c.get("options", []))
