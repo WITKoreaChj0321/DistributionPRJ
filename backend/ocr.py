@@ -23,6 +23,30 @@ class OCRResult:
     parsed_questions: list[ParsedQuestion]
     wrong_question_nums: list[int]  # 틀린 것으로 감지된 문제 번호들
     confidence: float
+    exam_year: int = 0   # 사진에서 인식한 출제 연도
+    exam_round: int = 0  # 사진에서 인식한 회차
+
+
+# 연도/회차 추출용 정규식
+_YEAR_RE = re.compile(r'(20[12]\d)\s*년')
+_ROUND_RE = re.compile(r'(\d)\s*회')
+
+
+def extract_year_round(text: str) -> tuple[int, int]:
+    """OCR 텍스트에서 출제 연도와 회차를 추출. 없으면 (0, 0)."""
+    year = 0
+    round_ = 0
+    ym = _YEAR_RE.search(text)
+    if ym:
+        y = int(ym.group(1))
+        if 2010 <= y <= 2030:
+            year = y
+    rm = _ROUND_RE.search(text)
+    if rm:
+        r = int(rm.group(1))
+        if 1 <= r <= 4:
+            round_ = r
+    return year, round_
 
 
 class OCRProcessor:
@@ -110,11 +134,14 @@ class OCRProcessor:
                 q.is_marked_wrong = True
 
         confidence = 0.95 if full_text else 0.0
+        year, round_ = extract_year_round(full_text)
         return OCRResult(
             full_text=full_text,
             parsed_questions=parsed,
             wrong_question_nums=wrong_nums,
             confidence=confidence,
+            exam_year=year,
+            exam_round=round_,
         )
 
     async def _process_with_tesseract(self, image_bytes: bytes) -> OCRResult:

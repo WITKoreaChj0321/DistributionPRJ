@@ -1,6 +1,7 @@
+import re
 import uuid
 import traceback
-from fastapi import APIRouter, UploadFile, BackgroundTasks, HTTPException
+from fastapi import APIRouter, UploadFile, BackgroundTasks, HTTPException, Form
 
 router = APIRouter(prefix="/api")
 
@@ -8,14 +9,29 @@ router = APIRouter(prefix="/api")
 tasks: dict[str, dict] = {}
 
 
+def _parse_num_list(s: str) -> list[int]:
+    """'33, 35 41' 같은 입력을 [33, 35, 41]로 파싱."""
+    if not s:
+        return []
+    nums = []
+    for tok in re.split(r'[,\s]+', s.strip()):
+        if tok.isdigit():
+            n = int(tok)
+            if 1 <= n <= 80:
+                nums.append(n)
+    return sorted(set(nums))
+
+
 @router.post("/analyze")
 async def analyze_image(
     background_tasks: BackgroundTasks,
     images: list[UploadFile] | None = None,  # 다중 업로드 ('images' 필드)
     image: UploadFile | None = None,         # 단일 업로드 하위 호환 ('image' 필드)
+    wrong_numbers: str = Form(""),           # 수동 입력 틀린 번호 "33,35"
+    exam_year: int = Form(0),                # 수동 입력 연도 (0=자동)
+    exam_round: int = Form(0),               # 수동 입력 회차 (0=자동)
 ) -> dict:
     """여러 이미지를 업로드하고 OCR + 오답 분석을 백그라운드로 실행합니다."""
-    # 다중/단일 입력 통합
     files: list[UploadFile] = []
     if images:
         files.extend(images)
@@ -33,10 +49,14 @@ async def analyze_image(
             raise HTTPException(status_code=413, detail=f"{f.filename}: 파일 크기는 20MB를 초과할 수 없습니다.")
         image_bytes_list.append(data)
 
+    manual_wrong = _parse_num_list(wrong_numbers)
+
     task_id = str(uuid.uuid4())
     tasks[task_id] = {"status": "processing", "wrong_questions": [], "similar_questions": []}
 
-    background_tasks.add_task(_run_analysis, task_id, image_bytes_list)
+    background_tasks.add_task(
+        _run_analysis, task_id, image_bytes_list, manual_wrong, exam_year, exam_round
+    )
 
     return {"task_id": task_id, "status": "processing", "image_count": len(image_bytes_list)}
 
@@ -56,73 +76,125 @@ async def get_result(task_id: str) -> dict:
 
     return {
         "status": "done",
+        "exam_year": task.get("exam_year", 0),
+        "exam_round": task.get("exam_round", 0),
+        "auto_detected": task.get("auto_detected", []),
         "wrong_questions": task["wrong_questions"],
         "similar_questions": task["similar_questions"],
     }
 
 
-async def _run_analysis(task_id: str, image_bytes_list: list[bytes]):
-    """여러 이미지를 OCR → 병합 → 오답 분석 → 유사 문제 검색."""
+async def _run_analysis(
+    task_id: str,
+    image_bytes_list: list[bytes],
+    manual_wrong: list[int],
+    manual_year: int,
+    manual_round: int,
+):
+    """이미지 OCR → 연도/오답 결정 → DB 정답 매칭 → 유사 문제 검색.
+
+    오답 결정 우선순위: 수동 입력 > OpenCV 자동 감지
+    정답 출처: DB(연도+회차+번호) 조회
+    """
     try:
-        from ..ocr import OCRProcessor, OCRResult
-        from ..analyzer import ExamAnalyzer
+        from ..ocr import OCRProcessor, extract_year_round
+        from ..analyzer import WrongQuestion, _infer_subject
         from ..search import SimilarQuestionSearcher
         from ..vectordb import VectorDBManager
+        from ..marking import detect_marked_numbers, extract_number_positions
+        from database.models import get_question
 
-        # 1단계: 여러 이미지 OCR 후 결과 병합
         ocr = OCRProcessor()
-        merged_parsed = []
-        merged_wrong: list[int] = []
-        merged_text_parts: list[str] = []
-        seen_nums: set[int] = set()
 
+        merged_text_parts: list[str] = []
+        parsed_map: dict[int, object] = {}
+        auto_wrong: set[int] = set()
+
+        # 각 이미지 OCR + (Vision일 때) OpenCV 마킹 자동 감지
         for img_bytes in image_bytes_list:
             r = await ocr.process_image(img_bytes)
             merged_text_parts.append(r.full_text)
             for pq in r.parsed_questions:
-                if pq.num not in seen_nums:
-                    seen_nums.add(pq.num)
-                    merged_parsed.append(pq)
-            merged_wrong.extend(r.wrong_question_nums)
+                parsed_map.setdefault(pq.num, pq)
+            auto_wrong.update(r.wrong_question_nums)
 
-        merged_parsed.sort(key=lambda q: q.num)
-        ocr_result = OCRResult(
-            full_text="\n".join(merged_text_parts),
-            parsed_questions=merged_parsed,
-            wrong_question_nums=sorted(set(merged_wrong)),
-            confidence=0.9 if merged_parsed else 0.0,
-        )
+            # OpenCV 마킹 자동 감지 (Vision 응답이 있을 때만)
+            try:
+                if ocr._vision_client is not None:
+                    from google.cloud import vision
+                    img_obj = vision.Image(content=img_bytes)
+                    resp = ocr._vision_client.text_detection(image=img_obj)
+                    positions = extract_number_positions(resp.text_annotations)
+                    auto_wrong.update(detect_marked_numbers(img_bytes, positions))
+            except Exception:
+                pass
 
-        # 2단계: 오답 분석 (동기 메서드, AnalysisResult 반환)
-        analyzer = ExamAnalyzer()
-        analysis = analyzer.analyze(ocr_result)
+        full_text = "\n".join(merged_text_parts)
 
-        # 3단계: 유사 문제 검색
+        # 연도/회차: 수동 우선, 없으면 OCR 자동
+        year, round_ = extract_year_round(full_text)
+        if manual_year:
+            year = manual_year
+        if manual_round:
+            round_ = manual_round
+
+        # 틀린 번호: 수동 입력 우선, 없으면 자동 감지
+        wrong_nums = manual_wrong if manual_wrong else sorted(auto_wrong)
+
+        # 각 틀린 번호 → DB(연도,회차,번호) 조회로 정답/과목/보기 확보
+        wrong_questions: list[WrongQuestion] = []
+        for num in wrong_nums:
+            db_q = await get_question(year, round_, num)
+            if db_q is not None:
+                wrong_questions.append(WrongQuestion(
+                    question_num=num,
+                    question_text=db_q.question_text or "",
+                    selected_answer=0,
+                    correct_answer=db_q.answer,
+                    subject=db_q.subject or _infer_subject(num),
+                    options=[o for o in [
+                        db_q.option_1, db_q.option_2, db_q.option_3,
+                        db_q.option_4, db_q.option_5
+                    ] if o],
+                ))
+            else:
+                # DB에 없으면 OCR에서 파싱된 텍스트 사용
+                pq = parsed_map.get(num)
+                wrong_questions.append(WrongQuestion(
+                    question_num=num,
+                    question_text=getattr(pq, "text", "") if pq else "",
+                    selected_answer=0,
+                    correct_answer=None,
+                    subject=_infer_subject(num),
+                    options=[],
+                ))
+
+        # 유사 문제 검색
         vector_db = VectorDBManager()
         searcher = SimilarQuestionSearcher(vectordb=vector_db)
-        similar_map = await searcher.find_similar_for_wrong(analysis.wrong_questions)
+        similar_map = await searcher.find_similar_for_wrong(wrong_questions)
 
-        # WrongQuestion 데이터클래스 → JSON 직렬화 가능한 dict
-        # 프론트엔드는 'your_answer' 필드를 기대함
         wrong_list = [
             {
                 "question_num": wq.question_num,
                 "question_text": wq.question_text,
-                "your_answer": wq.selected_answer,
-                "correct_answer": wq.correct_answer,
+                "your_answer": wq.selected_answer or "-",
+                "correct_answer": wq.correct_answer if wq.correct_answer else "-",
                 "subject": wq.subject,
             }
-            for wq in analysis.wrong_questions
+            for wq in wrong_questions
         ]
 
-        # similar_map: {question_num: [유사문제 dict 리스트]} → 유사도 내림차순 평탄화
         similar_list: list[dict] = []
-        for similar_questions in similar_map.values():
-            similar_list.extend(similar_questions)
+        for sq in similar_map.values():
+            similar_list.extend(sq)
         similar_list.sort(key=lambda x: x.get("similarity", 0), reverse=True)
 
         tasks[task_id] = {
             "status": "done",
+            "exam_year": year,
+            "exam_round": round_,
+            "auto_detected": sorted(auto_wrong),
             "wrong_questions": wrong_list,
             "similar_questions": similar_list,
         }

@@ -56,3 +56,17 @@ class Question(Base):
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+
+async def get_question(year: int, round_: int, num: int) -> "Question | None":
+    """연도+회차+번호로 문제 조회. 연도/회차가 0이면 해당 조건 무시."""
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as session:
+        stmt = select(Question).where(Question.question_num == num)
+        if year:
+            stmt = stmt.where(Question.year == year)
+        if round_:
+            stmt = stmt.where(Question.round == round_)
+        result = await session.execute(stmt)
+        return result.scalars().first()

@@ -265,6 +265,14 @@ async function runAnalysis() {
     const formData = new FormData();
     files.forEach((f) => formData.append('images', f));
 
+    // 틀린 번호 / 연도 / 회차 직접 입력 (선택)
+    const wnEl = document.getElementById('wrong-numbers-input');
+    const yEl  = document.getElementById('exam-year-input');
+    const rEl  = document.getElementById('exam-round-input');
+    formData.append('wrong_numbers', wnEl ? wnEl.value : '');
+    formData.append('exam_year',  yEl && yEl.value ? yEl.value : '0');
+    formData.append('exam_round', rEl && rEl.value ? rEl.value : '0');
+
     const res = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
       body:   formData,
@@ -380,6 +388,23 @@ function renderResults(data) {
   const similar = data.similar_questions || [];
   wrongCountEl.textContent   = wrong.length;
   similarCountEl.textContent = similar.length;
+
+  // 연도/자동감지 안내
+  const yr = data.exam_year ? `${data.exam_year}년${data.exam_round ? ' '+data.exam_round+'회' : ''}` : '';
+  const auto = (data.auto_detected || []);
+  let infoEl = document.getElementById('result-info');
+  if (!infoEl) {
+    infoEl = document.createElement('p');
+    infoEl.id = 'result-info';
+    infoEl.style.cssText = 'font-size:.82rem;color:#64748B;margin:-12px 0 16px;text-align:center;';
+    const summary = document.getElementById('result-summary');
+    if (summary && summary.parentNode) summary.parentNode.insertBefore(infoEl, summary.nextSibling);
+  }
+  const parts = [];
+  if (yr) parts.push(`📅 ${yr} 인식`);
+  if (auto.length) parts.push(`자동 감지: ${auto.join(', ')}번`);
+  infoEl.textContent = parts.join('  ·  ');
+
   renderWrongQuestions(wrong);
   renderSimilarQuestions(similar);
 }
@@ -387,7 +412,7 @@ function renderResults(data) {
 function renderWrongQuestions(list) {
   wrongList.innerHTML = '';
   if (!list.length) {
-    wrongList.innerHTML = '<p style="color:#9E9E9E;font-size:.9rem;padding:8px 0;">오답이 발견되지 않았습니다.</p>';
+    wrongList.innerHTML = '<p style="color:#9E9E9E;font-size:.9rem;padding:8px 0;">틀린 문제가 없습니다. 위에서 사진을 다시 올리거나 틀린 번호를 직접 입력해보세요.</p>';
     return;
   }
   list.forEach((q) => {
