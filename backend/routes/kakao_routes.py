@@ -24,6 +24,7 @@ def _get_kakao_client() -> KakaoClient:
     return KakaoClient(
         rest_api_key=settings.kakao_rest_api_key,
         redirect_uri=settings.kakao_redirect_uri,
+        client_secret=settings.kakao_client_secret,
     )
 
 

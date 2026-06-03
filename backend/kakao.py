@@ -6,9 +6,10 @@ class KakaoClient:
     BASE_URL = "https://kapi.kakao.com"
     AUTH_URL = "https://kauth.kakao.com"
 
-    def __init__(self, rest_api_key: str, redirect_uri: str):
+    def __init__(self, rest_api_key: str, redirect_uri: str, client_secret: str = ""):
         self.rest_api_key = rest_api_key
         self.redirect_uri = redirect_uri
+        self.client_secret = client_secret
 
     def get_auth_url(self, state: str = "") -> str:
         params = {
@@ -29,6 +30,8 @@ class KakaoClient:
             "redirect_uri": self.redirect_uri,
             "code": code,
         }
+        if self.client_secret:
+            data["client_secret"] = self.client_secret
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 url,
