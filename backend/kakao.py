@@ -200,10 +200,19 @@ class KakaoClient:
         }
 
     def _question_detail(self, q: dict, header: str) -> str:
-        """문제 본문 + 정답(번호·내용)을 하나의 메시지 텍스트로 구성."""
+        """질문(보기 제외) + 정답만 하나의 메시지로 구성."""
+        import re as _re
         num  = q.get("question_num", "?")
         subj = q.get("subject", "")
         body = (q.get("question_text") or "").strip()
+
+        # question_text에 보기가 섞여 있으면 제거 → 질문만 남김
+        # 1) 보기 원문자(①②③④⑤) 등장 지점 전까지
+        body = _re.split(r'[①②③④⑤❶❷❸❹❺]', body)[0].strip()
+        # 2) 그래도 보기 번호('1.' '2.' 연속)가 남으면 첫 물음표까지
+        qm = body.find('?')
+        if qm > 0:
+            body = body[:qm + 1].strip()
 
         # 정답: wrong은 correct_answer, similar는 answer
         ans = q.get("correct_answer")
@@ -211,23 +220,17 @@ class KakaoClient:
             ans = q.get("answer")
         mark = self._ans_mark(ans)
 
-        # 정답 보기 내용 (있으면)
+        # 정답 보기 내용 (보기 1개만 — 전체 보기 나열 안 함)
         opts = q.get("options") or []
         ans_text = ""
         if isinstance(ans, int) and 1 <= ans <= len(opts):
-            ans_text = str(opts[ans - 1])
-            # 보기 앞 '1. ' 같은 번호 접두 제거
-            import re as _re
-            ans_text = _re.sub(r'^\s*\d+[.)]\s*', '', ans_text)
+            ans_text = _re.sub(r'^\s*\d+[.)]\s*', '', str(opts[ans - 1])).strip()
 
         parts = [f"{header}  {num}번 [{subj}]", ""]
         if body:
             parts.append(body)
             parts.append("")
-        if ans_text:
-            parts.append(f"✅ 정답: {mark} {ans_text}")
-        else:
-            parts.append(f"✅ 정답: {mark}")
+        parts.append(f"✅ 정답: {mark} {ans_text}".rstrip())
 
         text = "\n".join(parts)
         if len(text) > 195:
