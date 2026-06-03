@@ -90,6 +90,10 @@ def load_from_folder(folder: str | Path = "data/questions") -> list[dict]:
         elif path.suffix == ".csv":
             raw.extend(_load_csv(path))
             loaded_files.append(path.name)
+        elif path.suffix == ".pdf":
+            from crawler.pdf_loader import load_pdf
+            raw.extend(load_pdf(path))
+            loaded_files.append(path.name)
 
     if not raw:
         print(f"[파일 로더] '{folder}' 에 JSON/CSV 파일이 없습니다.")
