@@ -15,12 +15,11 @@ class KakaoClient:
     # ── OAuth ─────────────────────────────────────
 
     def get_auth_url(self, state: str = "") -> str:
+        # scope 미지정 → 카카오 개발자 콘솔 동의항목에 등록된 항목 사용
         params: dict = {
             "client_id":     self.rest_api_key,
             "redirect_uri":  self.redirect_uri,
             "response_type": "code",
-            # friends·talk_message 는 카카오 특별심사 권한 → 기본 프로필만 요청
-            "scope": "profile_nickname,profile_image",
         }
         if state:
             params["state"] = state
