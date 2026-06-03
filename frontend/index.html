@@ -52,7 +52,8 @@
 
         <!-- 미로그인 상태 -->
         <div class="kakao-login-area" id="kakao-login-area">
-          <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button">
+          <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button"
+                  onclick="window.location.href='/auth/kakao';">
             <span class="kakao-icon">&#128172;</span>
             카카오 로그인
           </button>
@@ -220,13 +221,15 @@
           </div>
         </div>
 
-        <!-- 재전송 / 다시하기 -->
+        <!-- 재전송 / 다시하기 (인라인 onclick 백업) -->
         <div class="result-actions">
-          <button class="btn btn-kakao" id="resend-kakao-btn" type="button">
+          <button class="btn btn-kakao" id="resend-kakao-btn" type="button"
+                  onclick="if(window.sendToKakao){window.sendToKakao();}">
             <span class="kakao-icon">&#128172;</span>
             카카오톡으로 전송
           </button>
-          <button class="btn btn-outline" id="restart-btn" type="button">새로 분석하기</button>
+          <button class="btn btn-outline" id="restart-btn" type="button"
+                  onclick="location.reload();">새로 분석하기</button>
         </div>
       </section>
 
@@ -246,6 +249,6 @@
     </div>
   </footer>
 
-  <script src="/static/app.js?v=5"></script>
+  <script src="/static/app.js?v=7"></script>
 </body>
 </html>

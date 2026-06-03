@@ -26,7 +26,8 @@ class OCRResult:
 
 
 class OCRProcessor:
-    WRONG_MARKS = {"X", "×", "✗", "x"}
+    # 오답 표시: X류 + 사선(\, /)류 + 체크류
+    WRONG_MARKS = {"X", "×", "✗", "x", "\\", "/", "＼", "／", "√", "∨"}
     QUESTION_PATTERN = re.compile(r'(\d+)[.\)]\s*(.+?)(?=\n\d+[.\)]|\Z)', re.DOTALL)
     ANSWER_CIRCLE_PATTERN = re.compile(r'[①②③④⑤]|[○◎]?\s*(\d)\s*[○◎]?')
     CIRCLE_NUMBERS = {"①": 1, "②": 2, "③": 3, "④": 4, "⑤": 5}
@@ -205,27 +206,33 @@ class OCRProcessor:
                 "bounding": ann.bounding_poly.vertices,
             })
 
-        # X 마크 위치 수집
+        # X/사선 마크 위치 수집 (마크가 단독 블록이거나 짧은 텍스트에 포함된 경우)
         x_positions = []
         for blk in blocks:
-            if blk["text"].strip() in self.WRONG_MARKS:
-                if blk["bounding"]:
-                    cx = sum(v.x for v in blk["bounding"]) / 4
-                    cy = sum(v.y for v in blk["bounding"]) / 4
-                    x_positions.append((cx, cy))
+            t = blk["text"].strip()
+            is_mark = t in self.WRONG_MARKS or (
+                len(t) <= 3 and any(m in t for m in self.WRONG_MARKS)
+            )
+            if is_mark and blk["bounding"]:
+                cx = sum(v.x for v in blk["bounding"]) / 4
+                cy = sum(v.y for v in blk["bounding"]) / 4
+                x_positions.append((cx, cy))
 
         if not x_positions:
             return wrong_nums
 
-        # 문제 번호 블록 수집
-        num_re = re.compile(r'^(\d{1,3})[.\)]$')
+        # 문제 번호 블록 수집 (점/괄호 없어도 1~80 범위 숫자면 인정)
+        num_re = re.compile(r'^(\d{1,3})[.\)]?$')
         num_blocks = []
         for blk in blocks:
             m = num_re.match(blk["text"].strip())
             if m and blk["bounding"]:
+                num = int(m.group(1))
+                if not (1 <= num <= 80):
+                    continue
                 cx = sum(v.x for v in blk["bounding"]) / 4
                 cy = sum(v.y for v in blk["bounding"]) / 4
-                num_blocks.append({"num": int(m.group(1)), "cx": cx, "cy": cy})
+                num_blocks.append({"num": num, "cx": cx, "cy": cy})
 
         # 각 X 위치에서 가장 가까운 문제 번호 연결
         for xc, yc in x_positions:

@@ -20,8 +20,10 @@ class KakaoClient:
             "redirect_uri":  self.redirect_uri,
             "response_type": "code",
             # 동의항목에 활성화된 항목만 요청 (비활성 항목 포함 시 KOE205)
-            # 친구목록: 카카오 개발자 콘솔 → 카카오 로그인 → 동의항목 → 카카오톡 친구 목록 활성화 필요
-            "scope": "profile_nickname,profile_image,friends",
+            # 콘솔 → 카카오 로그인 → 동의항목 에서 아래 항목 활성화 필요:
+            #   - 카카오톡 친구 목록(friends)
+            #   - 카카오톡 메시지 전송(talk_message)  ← 나에게/친구에게 보내기 필수
+            "scope": "profile_nickname,profile_image,friends,talk_message",
         }
         if state:
             params["state"] = state

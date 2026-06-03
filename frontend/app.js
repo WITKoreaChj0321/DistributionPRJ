@@ -533,3 +533,10 @@ function escapeHtml(str) {
     .replace(/>/g, '&gt;').replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// ---------------------------------------------------------------
+// 인라인 onclick 백업용 전역 노출 (app.js 리스너 미등록 대비)
+// ---------------------------------------------------------------
+window.sendToKakao = sendToKakao;
+window.appReady    = true;   // app.js 끝까지 실행됐다는 플래그
+console.log('[app.js] 로드 완료 (v7)');
