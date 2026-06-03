@@ -39,19 +39,38 @@ class OCRProcessor:
     def _init_backends(self):
         try:
             from google.cloud import vision
+
+            # .env(settings) 또는 환경변수에서 자격증명 경로 확보
             creds = os.environ.get("GOOGLE_APPLICATION_CREDENTIALS")
-            if creds and os.path.exists(creds):
-                self._vision_client = vision.ImageAnnotatorClient()
+            if not creds:
+                try:
+                    from backend.config import settings
+                    creds = settings.google_application_credentials
+                except Exception:
+                    creds = ""
+
+            if creds:
+                cred_path = Path(creds)
+                if not cred_path.is_absolute():
+                    cred_path = Path(__file__).resolve().parent.parent / cred_path
+                if cred_path.exists():
+                    # google 라이브러리가 자동으로 읽도록 환경변수에 주입
+                    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(cred_path)
+                    self._vision_client = vision.ImageAnnotatorClient()
+                    print(f"[OCR] Google Vision API 사용 (creds: {cred_path.name})")
         except ImportError:
             pass
+        except Exception as e:
+            print(f"[OCR] Vision 초기화 실패, 폴백 사용: {e}")
 
         if self._vision_client is None:
             try:
                 import pytesseract
                 pytesseract.get_tesseract_version()
                 self._tesseract_available = True
+                print("[OCR] Tesseract 사용")
             except Exception:
-                pass
+                print("[OCR] OCR 엔진 없음 → Mock 결과 반환")
 
     async def process_image(self, image_bytes: bytes) -> OCRResult:
         if self._vision_client is not None:
