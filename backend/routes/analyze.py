@@ -181,6 +181,7 @@ async def _run_analysis(
                 "your_answer": wq.selected_answer or "-",
                 "correct_answer": wq.correct_answer if wq.correct_answer else "-",
                 "subject": wq.subject,
+                "options": wq.options or [],   # 정답 보기 내용 표시용
             }
             for wq in wrong_questions
         ]

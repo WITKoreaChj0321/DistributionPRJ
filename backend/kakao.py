@@ -236,16 +236,21 @@ class KakaoClient:
                 when += f" {round_}회"
             when += " "
 
-        parts = [f"{header}  {when}{num}번 [{subj}]", ""]
+        ans_line = f"✅ 정답: {mark} {ans_text}".rstrip()
+
+        # 본문이 길면 본문만 줄여서 정답 줄을 항상 보존
+        head_line = f"{header}  {when}{num}번 [{subj}]"
+        reserved = len(head_line) + len(ans_line) + 6  # 줄바꿈/여백
+        max_body = max(0, 190 - reserved)
+        if len(body) > max_body:
+            body = body[:max(0, max_body - 3)].rstrip() + "..."
+
+        parts = [head_line, ""]
         if body:
             parts.append(body)
             parts.append("")
-        parts.append(f"✅ 정답: {mark} {ans_text}".rstrip())
-
-        text = "\n".join(parts)
-        if len(text) > 195:
-            text = text[:192] + "..."
-        return text
+        parts.append(ans_line)
+        return "\n".join(parts)
 
     def _build_detail_messages(
         self, wrong_qs: list[dict], similar_qs: list[dict]
