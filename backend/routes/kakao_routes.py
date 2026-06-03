@@ -121,6 +121,7 @@ class SendKakaoRequest(BaseModel):
     task_id: str
     friend_uuid: str  # "me" 이면 나에게 보내기
     token: str
+    include_frequent: bool = True  # 최빈출 기출 포함 여부
 
 
 @router.post("/api/send-kakao")
@@ -140,6 +141,20 @@ async def send_kakao(body: SendKakaoRequest) -> dict:
     wrong_questions = task.get("wrong_questions", [])
     similar_questions = task.get("similar_questions", [])
 
+    # 최빈출 기출문제 (상위 5개)
+    frequent_questions = []
+    if body.include_frequent:
+        try:
+            import asyncio
+            from ..frequent import compute_frequent
+            from ..vectordb import VectorDBManager
+            loop = asyncio.get_running_loop()
+            frequent_questions = await loop.run_in_executor(
+                None, compute_frequent, VectorDBManager(), 5
+            )
+        except Exception:
+            frequent_questions = []
+
     client = _get_kakao_client()
     try:
         if body.friend_uuid == "me":
@@ -147,6 +162,7 @@ async def send_kakao(body: SendKakaoRequest) -> dict:
                 access_token=body.token,
                 wrong_questions=wrong_questions,
                 similar_questions=similar_questions,
+                frequent_questions=frequent_questions,
             )
         else:
             success = await client.send_message_to_friend(
@@ -154,6 +170,7 @@ async def send_kakao(body: SendKakaoRequest) -> dict:
                 receiver_uuid=body.friend_uuid,
                 wrong_questions=wrong_questions,
                 similar_questions=similar_questions,
+                frequent_questions=frequent_questions,
             )
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"카카오톡 전송 실패: {exc}")

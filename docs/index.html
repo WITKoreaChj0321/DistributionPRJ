@@ -238,6 +238,17 @@
           </div>
         </div>
 
+        <!-- 🔥 최빈출 기출문제 -->
+        <div class="result-block" id="frequent-block">
+          <h3 class="block-title">
+            <span class="block-icon">&#128293;</span>
+            최빈출 기출문제 <span style="font-size:.78rem;font-weight:400;color:#94A3B8;">(여러 해 반복 출제)</span>
+          </h3>
+          <div class="similar-list" id="frequent-list">
+            <p style="color:#94A3B8;font-size:.85rem;padding:8px 0;">불러오는 중...</p>
+          </div>
+        </div>
+
         <!-- 전송 대상 선택 (로그인 시에만 표시) -->
         <div id="result-send-target" class="friend-select-wrap hidden" style="margin-bottom:14px;">
           <label class="form-label" for="friend-select-result">📨 전송 대상</label>
@@ -279,12 +290,12 @@
     if (location.hostname.endsWith('github.io')) {
       window.addEventListener('DOMContentLoaded', function () {
         var b = document.createElement('div');
-        b.style.cssText = 'background:#FEF3C7;color:#92400E;padding:10px 16px;text-align:center;font-size:.85rem;font-weight:600;border-bottom:1px solid #FCD34D;';
-        b.innerHTML = '⚠️ 데모 UI입니다. 실제 분석은 로컬 서버(localhost:8000)에서 실행하세요. <a href="https://github.com/WITKoreaChj0321/DistributionPRJ" style="color:#92400E;text-decoration:underline;">설치 안내</a>';
+        b.style.cssText = 'background:#FEF3C7;color:#92400E;padding:10px 16px;text-align:center;font-size:.85rem;font-weight:600;';
+        b.innerHTML = '⚠️ 데모 UI입니다. 실제 분석은 로컬 서버에서 실행하세요. <a href="https://github.com/WITKoreaChj0321/DistributionPRJ" style="color:#92400E;">설치 안내</a>';
         document.body.insertBefore(b, document.body.firstChild);
       });
     }
   </script>
-  <script src="app.js?v=12"></script>
+  <script src="app.js?v=13"></script>
 </body>
 </html>

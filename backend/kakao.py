@@ -129,9 +129,12 @@ class KakaoClient:
         access_token: str,
         wrong_questions: list[dict],
         similar_questions: list[dict],
+        frequent_questions: list[dict] | None = None,
     ) -> bool:
         """문제별로 '문제 본문 + 정답'을 개별 메시지로 분할 전송."""
-        messages = self._build_detail_messages(wrong_questions, similar_questions)
+        messages = self._build_detail_messages(
+            wrong_questions, similar_questions, frequent_questions or []
+        )
         sent = 0
         for msg in messages:
             try:
@@ -170,8 +173,11 @@ class KakaoClient:
         receiver_uuid: str,
         wrong_questions: list[dict],
         similar_questions: list[dict],
+        frequent_questions: list[dict] | None = None,
     ) -> bool:
-        messages = self._build_detail_messages(wrong_questions, similar_questions)
+        messages = self._build_detail_messages(
+            wrong_questions, similar_questions, frequent_questions or []
+        )
         sent = 0
         for msg in messages:
             if await self._send_one_friend(access_token, receiver_uuid, msg):
@@ -252,28 +258,52 @@ class KakaoClient:
         parts.append(ans_line)
         return "\n".join(parts)
 
+    def _frequent_detail(self, item: dict) -> str:
+        """최빈출 기출 1건 메시지 (본문 + 정답 내용)."""
+        subj = item.get("subject", "")
+        freq = item.get("frequency", 0)
+        body = (item.get("question_text") or "").strip()
+        ans  = item.get("answer_content", "")
+
+        head = f"🔥 최빈출 [{subj}] {freq}개년 반복"
+        ans_line = f"✅ 정답: {ans}"
+        reserved = len(head) + len(ans_line) + 6
+        max_body = max(0, 190 - reserved)
+        if len(body) > max_body:
+            body = body[:max(0, max_body - 3)].rstrip() + "..."
+        return f"{head}\n\n{body}\n\n{ans_line}"
+
     def _build_detail_messages(
-        self, wrong_qs: list[dict], similar_qs: list[dict]
+        self, wrong_qs: list[dict], similar_qs: list[dict],
+        frequent_qs: list[dict] | None = None,
     ) -> list[str]:
-        """문제별 '본문 + 정답' 메시지 리스트 생성 (요약 헤더 + 각 문제)."""
+        """문제별 '본문 + 정답' 메시지 리스트 생성."""
+        frequent_qs = frequent_qs or []
         messages: list[str] = []
 
         # 1) 요약 헤더
         nums = ", ".join(str(q.get("question_num", "?")) for q in wrong_qs) or "없음"
-        messages.append(
+        head = (
             f"📚 유통관리사 오답 분석 결과\n\n"
             f"틀린 문제: {nums}번 ({len(wrong_qs)}개)\n"
-            f"유사 기출문제 {len(similar_qs)}개\n\n"
-            f"아래에 문제별 상세를 보내드립니다."
+            f"유사 기출문제 {len(similar_qs)}개"
         )
+        if frequent_qs:
+            head += f"\n최빈출 기출 {len(frequent_qs)}개"
+        head += "\n\n아래에 문제별 상세를 보내드립니다."
+        messages.append(head)
 
         # 2) 틀린 문제 각각 (본문 + 정답)
         for q in wrong_qs[:8]:
             messages.append(self._question_detail(q, "❌ 틀린 문제"))
 
-        # 3) 유사 기출 상위 3개 (본문 + 정답)
+        # 3) 유사 기출 상위 3개
         for s in similar_qs[:3]:
             messages.append(self._question_detail(s, "📖 유사 기출"))
+
+        # 4) 최빈출 기출 (본문 + 정답)
+        for f in frequent_qs[:5]:
+            messages.append(self._frequent_detail(f))
 
         return messages
 

@@ -425,6 +425,40 @@ function renderResults(data) {
 
   renderWrongQuestions(wrong);
   renderSimilarQuestions(similar);
+  loadFrequent();
+}
+
+// 최빈출 기출문제 로드
+async function loadFrequent() {
+  const box = document.getElementById('frequent-list');
+  if (!box) return;
+  try {
+    const res = await fetch(`${API_BASE}/api/frequent?top=10`);
+    if (!res.ok) throw new Error();
+    const data = await res.json();
+    const items = data.questions || [];
+    if (!items.length) {
+      box.innerHTML = '<p style="color:#94A3B8;font-size:.85rem;padding:8px 0;">최빈출 데이터가 없습니다.</p>';
+      return;
+    }
+    box.innerHTML = '';
+    items.forEach((q) => {
+      const card = document.createElement('div');
+      card.className = 'similar-card';
+      card.innerHTML = `
+        <div class="similar-card-header">
+          <div class="similar-meta">
+            <span class="badge badge-subject">${escapeHtml(q.subject || '')}</span>
+            <span class="badge badge-year">${q.frequency}개년 반복</span>
+          </div>
+        </div>
+        <p class="similar-qtext">${escapeHtml(q.question_text || '')}</p>
+        <p class="similar-answer-line">&#10003; 정답: ${escapeHtml(q.answer_content || '')}</p>`;
+      box.appendChild(card);
+    });
+  } catch (e) {
+    box.innerHTML = '<p style="color:#94A3B8;font-size:.85rem;padding:8px 0;">최빈출을 불러오지 못했습니다.</p>';
+  }
 }
 
 function renderWrongQuestions(list) {
