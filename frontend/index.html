@@ -104,8 +104,24 @@
         </h2>
         <p class="section-desc">시험지 또는 답안지 사진을 업로드하면 AI가 오답을 자동으로 분석합니다.</p>
 
-        <!-- file-input을 label로 감싸서 JS 없이도 클릭 동작 -->
-        <input type="file" id="file-input" accept="image/*" style="display:none" />
+        <!-- file-input: label 연동 + onchange 인라인 처리 (외부 JS 불필요) -->
+        <input type="file" id="file-input" accept="image/*" style="display:none"
+          onchange="(function(inp){
+            var f=inp.files[0]; if(!f)return;
+            window._selectedFile=f;
+            if(!f.type.startsWith('image/')){alert('이미지 파일만 업로드할 수 있습니다.');return;}
+            var r=new FileReader();
+            r.onload=function(e){
+              document.getElementById('preview-img').src=e.target.result;
+              document.getElementById('preview-info').textContent=f.name+' ('+Math.round(f.size/1024)+' KB)';
+              document.getElementById('upload-placeholder').classList.add('hidden');
+              document.getElementById('upload-preview').classList.remove('hidden');
+              var cw=document.getElementById('change-wrap');
+              if(cw)cw.classList.remove('hidden');
+              document.getElementById('analyze-btn').removeAttribute('disabled');
+            };
+            r.readAsDataURL(f);
+          })(this)" />
 
         <label class="upload-area" id="upload-area" for="file-input">
           <div class="upload-placeholder" id="upload-placeholder">

@@ -250,10 +250,13 @@ function formatBytes(bytes) {
 // ANALYZE — Step 2 → 3
 // ---------------------------------------------------------------
 analyzeBtn.addEventListener('click', async () => {
-  if (!selectedFile) {
+  // window._selectedFile: onchange 인라인 핸들러가 설정한 폴백
+  const fileToUpload = selectedFile || window._selectedFile || null;
+  if (!fileToUpload) {
     showToast('이미지를 먼저 선택해주세요.', 'error');
     return;
   }
+  selectedFile = fileToUpload;
   try {
     analyzeBtn.disabled = true;
     analyzeBtn.querySelector('.btn-text').textContent = '전송 중...';

@@ -15,11 +15,13 @@ class KakaoClient:
     # ── OAuth ─────────────────────────────────────
 
     def get_auth_url(self, state: str = "") -> str:
-        # scope 미지정 → 카카오 개발자 콘솔 동의항목에 등록된 항목 사용
         params: dict = {
             "client_id":     self.rest_api_key,
             "redirect_uri":  self.redirect_uri,
             "response_type": "code",
+            # 동의항목에 활성화된 항목만 요청 (비활성 항목 포함 시 KOE205)
+            # 친구목록: 카카오 개발자 콘솔 → 카카오 로그인 → 동의항목 → 카카오톡 친구 목록 활성화 필요
+            "scope": "profile_nickname,profile_image,friends",
         }
         if state:
             params["state"] = state
