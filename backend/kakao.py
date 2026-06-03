@@ -103,32 +103,66 @@ class KakaoClient:
 
     # ── 메시지 전송 ────────────────────────────────
 
-    async def send_message_to_me(
-        self,
-        access_token: str,
-        wrong_questions: list[dict],
-        similar_questions: list[dict],
-    ) -> bool:
-        url      = f"{self.BASE_URL}/v2/api/talk/memo/default/send"
-        headers  = {
+    async def _send_one_memo(self, access_token: str, text: str) -> bool:
+        """나에게 보내기 — text 메시지 1건 전송."""
+        url     = f"{self.BASE_URL}/v2/api/talk/memo/default/send"
+        headers = {
             "Authorization": f"Bearer {access_token}",
             "Content-Type":  "application/x-www-form-urlencoded",
         }
-        template = self._build_message_template(wrong_questions, similar_questions)
+        template = self._text_template(text)
         async with httpx.AsyncClient() as client:
             resp = await client.post(
                 url, headers=headers,
                 data={"template_object": json.dumps(template, ensure_ascii=False)},
             )
-
         if resp.status_code != 200:
             try:
                 err = resp.json()
             except Exception:
                 err = resp.text
             raise RuntimeError(f"나에게 보내기 실패 [{resp.status_code}]: {err}")
-
         return resp.json().get("result_code", -1) == 0
+
+    async def send_message_to_me(
+        self,
+        access_token: str,
+        wrong_questions: list[dict],
+        similar_questions: list[dict],
+    ) -> bool:
+        """문제별로 '문제 본문 + 정답'을 개별 메시지로 분할 전송."""
+        messages = self._build_detail_messages(wrong_questions, similar_questions)
+        sent = 0
+        for msg in messages:
+            try:
+                if await self._send_one_memo(access_token, msg):
+                    sent += 1
+            except RuntimeError:
+                raise
+        return sent > 0
+
+    async def _send_one_friend(self, access_token: str, uuid: str, text: str) -> bool:
+        url     = f"{self.BASE_URL}/v1/api/talk/friends/message/send"
+        headers = {
+            "Authorization": f"Bearer {access_token}",
+            "Content-Type":  "application/x-www-form-urlencoded",
+        }
+        template = self._text_template(text)
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                url, headers=headers,
+                data={
+                    "receiver_uuids":  json.dumps([uuid]),
+                    "template_object": json.dumps(template, ensure_ascii=False),
+                },
+            )
+        if resp.status_code != 200:
+            try:
+                err = resp.json()
+            except Exception:
+                err = resp.text
+            raise RuntimeError(f"친구에게 보내기 실패 [{resp.status_code}]: {err}")
+        return resp.json().get("successful_receiver_uuids", []) != []
 
     async def send_message_to_friend(
         self,
@@ -137,29 +171,12 @@ class KakaoClient:
         wrong_questions: list[dict],
         similar_questions: list[dict],
     ) -> bool:
-        url     = f"{self.BASE_URL}/v1/api/talk/friends/message/send"
-        headers = {
-            "Authorization": f"Bearer {access_token}",
-            "Content-Type":  "application/x-www-form-urlencoded",
-        }
-        template = self._build_message_template(wrong_questions, similar_questions)
-        async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                url, headers=headers,
-                data={
-                    "receiver_uuids":  json.dumps([receiver_uuid]),
-                    "template_object": json.dumps(template, ensure_ascii=False),
-                },
-            )
-
-        if resp.status_code != 200:
-            try:
-                err = resp.json()
-            except Exception:
-                err = resp.text
-            raise RuntimeError(f"친구에게 보내기 실패 [{resp.status_code}]: {err}")
-
-        return resp.json().get("successful_receiver_uuids", []) != []
+        messages = self._build_detail_messages(wrong_questions, similar_questions)
+        sent = 0
+        for msg in messages:
+            if await self._send_one_friend(access_token, receiver_uuid, msg):
+                sent += 1
+        return sent > 0
 
     # ── 메시지 템플릿 ──────────────────────────────
 
@@ -169,6 +186,78 @@ class KakaoClient:
         if isinstance(ans, int):
             return self._CIRCLE.get(ans, str(ans))
         return str(ans) if ans not in (None, "", "-") else "?"
+
+    def _text_template(self, text: str) -> dict:
+        """카카오 text 타입 메시지 템플릿."""
+        return {
+            "object_type": "text",
+            "text": text,
+            "link": {
+                "web_url":        "https://www.comcbt.com",
+                "mobile_web_url": "https://www.comcbt.com",
+            },
+            "button_title": "기출문제 더 풀기",
+        }
+
+    def _question_detail(self, q: dict, header: str) -> str:
+        """문제 본문 + 정답(번호·내용)을 하나의 메시지 텍스트로 구성."""
+        num  = q.get("question_num", "?")
+        subj = q.get("subject", "")
+        body = (q.get("question_text") or "").strip()
+
+        # 정답: wrong은 correct_answer, similar는 answer
+        ans = q.get("correct_answer")
+        if ans in (None, "", "-"):
+            ans = q.get("answer")
+        mark = self._ans_mark(ans)
+
+        # 정답 보기 내용 (있으면)
+        opts = q.get("options") or []
+        ans_text = ""
+        if isinstance(ans, int) and 1 <= ans <= len(opts):
+            ans_text = str(opts[ans - 1])
+            # 보기 앞 '1. ' 같은 번호 접두 제거
+            import re as _re
+            ans_text = _re.sub(r'^\s*\d+[.)]\s*', '', ans_text)
+
+        parts = [f"{header}  {num}번 [{subj}]", ""]
+        if body:
+            parts.append(body)
+            parts.append("")
+        if ans_text:
+            parts.append(f"✅ 정답: {mark} {ans_text}")
+        else:
+            parts.append(f"✅ 정답: {mark}")
+
+        text = "\n".join(parts)
+        if len(text) > 195:
+            text = text[:192] + "..."
+        return text
+
+    def _build_detail_messages(
+        self, wrong_qs: list[dict], similar_qs: list[dict]
+    ) -> list[str]:
+        """문제별 '본문 + 정답' 메시지 리스트 생성 (요약 헤더 + 각 문제)."""
+        messages: list[str] = []
+
+        # 1) 요약 헤더
+        nums = ", ".join(str(q.get("question_num", "?")) for q in wrong_qs) or "없음"
+        messages.append(
+            f"📚 유통관리사 오답 분석 결과\n\n"
+            f"틀린 문제: {nums}번 ({len(wrong_qs)}개)\n"
+            f"유사 기출문제 {len(similar_qs)}개\n\n"
+            f"아래에 문제별 상세를 보내드립니다."
+        )
+
+        # 2) 틀린 문제 각각 (본문 + 정답)
+        for q in wrong_qs[:8]:
+            messages.append(self._question_detail(q, "❌ 틀린 문제"))
+
+        # 3) 유사 기출 상위 3개 (본문 + 정답)
+        for s in similar_qs[:3]:
+            messages.append(self._question_detail(s, "📖 유사 기출"))
+
+        return messages
 
     def _build_message_template(
         self, wrong_qs: list[dict], similar_qs: list[dict]
@@ -201,8 +290,8 @@ class KakaoClient:
             "object_type": "text",
             "text": text,
             "link": {
-                "web_url":        "https://witkoreachj0321.github.io/DistributionPRJ/",
-                "mobile_web_url": "https://witkoreachj0321.github.io/DistributionPRJ/",
+                "web_url":        "https://www.comcbt.com",
+                "mobile_web_url": "https://www.comcbt.com",
             },
-            "button_title": "웹에서 전체 보기",
+            "button_title": "기출문제 더 풀기",
         }
