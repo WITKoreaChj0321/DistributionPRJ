@@ -68,10 +68,10 @@ _SQLITE_BATCH = 100
 async def save_to_sqlite(questions: list[dict]) -> int:
     """SQLite에 문제 메타데이터 저장. 저장된 문제 수 반환.
 
-    - 100개 단위 배치 커밋으로 메모리 부하 방지
-    - ON CONFLICT DO NOTHING: chroma_id 중복 시 건너뜀 (IntegrityError 방지)
+    - 100개 단위 배치 커밋
+    - chroma_id 중복 시 IntegrityError 무시 (aiosqlite rowcount 버그 우회)
     """
-    from sqlalchemy.dialects.sqlite import insert as sqlite_insert
+    from sqlalchemy.exc import IntegrityError
 
     saved = 0
     async with AsyncSessionLocal() as session:
@@ -80,31 +80,50 @@ async def save_to_sqlite(questions: list[dict]) -> int:
             for q in batch:
                 chroma_id = _make_chroma_id(q)
                 options = q.get("options", [])
-
-                stmt = (
-                    sqlite_insert(Question)
-                    .values(
-                        year=q["year"],
-                        round=q["round"],
-                        subject=q["subject"],
-                        question_num=q["question_num"],
-                        question_text=q["question_text"],
-                        option_1=options[0] if len(options) > 0 else None,
-                        option_2=options[1] if len(options) > 1 else None,
-                        option_3=options[2] if len(options) > 2 else None,
-                        option_4=options[3] if len(options) > 3 else None,
-                        option_5=options[4] if len(options) > 4 else None,
-                        answer=q["answer"],
-                        explanation=q.get("explanation", ""),
-                        source_url=q.get("source_url", ""),
-                        chroma_id=chroma_id,
-                    )
-                    .on_conflict_do_nothing(index_elements=["chroma_id"])
+                db_q = Question(
+                    year=q["year"],
+                    round=q["round"],
+                    subject=q["subject"],
+                    question_num=q["question_num"],
+                    question_text=q["question_text"],
+                    option_1=options[0] if len(options) > 0 else None,
+                    option_2=options[1] if len(options) > 1 else None,
+                    option_3=options[2] if len(options) > 2 else None,
+                    option_4=options[3] if len(options) > 3 else None,
+                    option_5=options[4] if len(options) > 4 else None,
+                    answer=q["answer"],
+                    explanation=q.get("explanation", ""),
+                    source_url=q.get("source_url", ""),
+                    chroma_id=chroma_id,
                 )
-                result = await session.execute(stmt)
-                saved += result.rowcount
+                session.add(db_q)
+                saved += 1
 
-            await session.commit()
+            try:
+                await session.commit()
+            except IntegrityError:
+                await session.rollback()
+                # 중복 포함 배치: 한 건씩 재시도
+                for q in batch:
+                    chroma_id = _make_chroma_id(q)
+                    options = q.get("options", [])
+                    try:
+                        db_q = Question(
+                            year=q["year"], round=q["round"], subject=q["subject"],
+                            question_num=q["question_num"], question_text=q["question_text"],
+                            option_1=options[0] if len(options) > 0 else None,
+                            option_2=options[1] if len(options) > 1 else None,
+                            option_3=options[2] if len(options) > 2 else None,
+                            option_4=options[3] if len(options) > 3 else None,
+                            option_5=options[4] if len(options) > 4 else None,
+                            answer=q["answer"], explanation=q.get("explanation", ""),
+                            source_url=q.get("source_url", ""), chroma_id=chroma_id,
+                        )
+                        session.add(db_q)
+                        await session.commit()
+                    except IntegrityError:
+                        await session.rollback()
+                        saved -= 1  # 중복은 카운트에서 제외
 
     return saved
 
@@ -251,7 +270,7 @@ def main():
     if folder is None and not args.use_sample and not args.crawl:
         default_folder = Path(__file__).parent.parent / "data" / "questions"
         has_files = any(
-            f.suffix in (".json", ".csv")
+            f.suffix in (".json", ".csv", ".pdf")
             for f in default_folder.iterdir()
             if not f.name.startswith((".", "format_example"))
         ) if default_folder.exists() else False
