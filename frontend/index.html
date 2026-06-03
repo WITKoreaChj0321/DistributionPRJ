@@ -105,31 +105,30 @@
         </h2>
         <p class="section-desc">시험지 또는 답안지 사진을 업로드하면 AI가 오답을 자동으로 분석합니다.</p>
 
-        <!-- file-input: label 연동 + onchange 인라인 처리 (외부 JS 불필요) -->
-        <input type="file" id="file-input" accept="image/*" style="display:none"
+        <!-- file-input: multiple + label 연동 + onchange 인라인 처리 -->
+        <input type="file" id="file-input" accept="image/*" multiple style="display:none"
           onchange="(function(inp){
-            var f=inp.files[0]; if(!f)return;
-            window._selectedFile=f;
-            if(!f.type.startsWith('image/')){alert('이미지 파일만 업로드할 수 있습니다.');return;}
+            var files=Array.from(inp.files||[]); if(!files.length)return;
+            window._selectedFiles=files;
+            window._selectedFile=files[0];
+            var ph=document.getElementById('upload-placeholder');
+            var pv=document.getElementById('upload-preview');
+            ph.classList.add('hidden'); pv.classList.remove('hidden');
             var r=new FileReader();
-            r.onload=function(e){
-              document.getElementById('preview-img').src=e.target.result;
-              document.getElementById('preview-info').textContent=f.name+' ('+Math.round(f.size/1024)+' KB)';
-              document.getElementById('upload-placeholder').classList.add('hidden');
-              document.getElementById('upload-preview').classList.remove('hidden');
-              var cw=document.getElementById('change-wrap');
-              if(cw)cw.classList.remove('hidden');
-              document.getElementById('analyze-btn').removeAttribute('disabled');
-            };
-            r.readAsDataURL(f);
+            r.onload=function(e){ document.getElementById('preview-img').src=e.target.result; };
+            r.readAsDataURL(files[0]);
+            var extra = files.length>1 ? (' 외 '+(files.length-1)+'장') : '';
+            document.getElementById('preview-info').textContent=files.length+'장 선택됨 — '+files[0].name+extra;
+            var cw=document.getElementById('change-wrap'); if(cw)cw.classList.remove('hidden');
+            document.getElementById('analyze-btn').removeAttribute('disabled');
           })(this)" />
 
         <label class="upload-area" id="upload-area" for="file-input">
           <div class="upload-placeholder" id="upload-placeholder">
             <div class="upload-icon">&#128247;</div>
             <p class="upload-main-text">클릭하거나 사진을 드래그해서 업로드</p>
-            <p class="upload-sub-text">JPG, PNG, HEIC 지원 · 최대 20MB</p>
-            <span class="btn btn-outline" id="upload-btn" style="pointer-events:none;">파일 선택</span>
+            <p class="upload-sub-text">여러 장 한 번에 선택 가능 · JPG, PNG, HEIC · 각 최대 20MB</p>
+            <span class="btn btn-outline" id="upload-btn" style="pointer-events:none;">파일 선택 (여러 장 가능)</span>
           </div>
           <div class="upload-preview hidden" id="upload-preview">
             <img id="preview-img" src="" alt="업로드된 시험지 미리보기" />
@@ -139,7 +138,7 @@
 
         <!-- 사진 변경: label 외부에 배치 (label 중첩 불가) -->
         <div id="change-wrap" class="hidden" style="text-align:right; margin-top:6px;">
-          <label class="btn btn-sm btn-outline" for="file-input" id="change-file-btn">사진 변경</label>
+          <label class="btn btn-sm btn-outline" for="file-input" id="change-file-btn">사진 다시 선택</label>
         </div>
 
         <div class="upload-actions">
@@ -249,6 +248,6 @@
     </div>
   </footer>
 
-  <script src="/static/app.js?v=7"></script>
+  <script src="/static/app.js?v=8"></script>
 </body>
 </html>

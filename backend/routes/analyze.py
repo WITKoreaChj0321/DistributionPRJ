@@ -10,23 +10,35 @@ tasks: dict[str, dict] = {}
 
 @router.post("/analyze")
 async def analyze_image(
-    image: UploadFile,  # 프론트엔드가 'image' 필드명으로 전송
     background_tasks: BackgroundTasks,
+    images: list[UploadFile] | None = None,  # 다중 업로드 ('images' 필드)
+    image: UploadFile | None = None,         # 단일 업로드 하위 호환 ('image' 필드)
 ) -> dict:
-    """이미지를 업로드하고 OCR + 오답 분석을 백그라운드로 실행합니다."""
-    if not image.content_type or not image.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다.")
+    """여러 이미지를 업로드하고 OCR + 오답 분석을 백그라운드로 실행합니다."""
+    # 다중/단일 입력 통합
+    files: list[UploadFile] = []
+    if images:
+        files.extend(images)
+    if image:
+        files.append(image)
+    if not files:
+        raise HTTPException(status_code=400, detail="이미지를 1개 이상 업로드해주세요.")
 
-    image_bytes = await image.read()
-    if len(image_bytes) > 20 * 1024 * 1024:
-        raise HTTPException(status_code=413, detail="파일 크기는 20MB를 초과할 수 없습니다.")
+    image_bytes_list: list[bytes] = []
+    for f in files:
+        if not f.content_type or not f.content_type.startswith("image/"):
+            raise HTTPException(status_code=400, detail="이미지 파일만 업로드 가능합니다.")
+        data = await f.read()
+        if len(data) > 20 * 1024 * 1024:
+            raise HTTPException(status_code=413, detail=f"{f.filename}: 파일 크기는 20MB를 초과할 수 없습니다.")
+        image_bytes_list.append(data)
 
     task_id = str(uuid.uuid4())
     tasks[task_id] = {"status": "processing", "wrong_questions": [], "similar_questions": []}
 
-    background_tasks.add_task(_run_analysis, task_id, image_bytes)
+    background_tasks.add_task(_run_analysis, task_id, image_bytes_list)
 
-    return {"task_id": task_id, "status": "processing"}
+    return {"task_id": task_id, "status": "processing", "image_count": len(image_bytes_list)}
 
 
 @router.get("/result/{task_id}")
@@ -49,17 +61,37 @@ async def get_result(task_id: str) -> dict:
     }
 
 
-async def _run_analysis(task_id: str, image_bytes: bytes):
-    """OCR → ExamAnalyzer → SimilarQuestionSearcher 파이프라인을 실행합니다."""
+async def _run_analysis(task_id: str, image_bytes_list: list[bytes]):
+    """여러 이미지를 OCR → 병합 → 오답 분석 → 유사 문제 검색."""
     try:
-        from ..ocr import OCRProcessor
+        from ..ocr import OCRProcessor, OCRResult
         from ..analyzer import ExamAnalyzer
         from ..search import SimilarQuestionSearcher
         from ..vectordb import VectorDBManager
 
-        # 1단계: OCR
+        # 1단계: 여러 이미지 OCR 후 결과 병합
         ocr = OCRProcessor()
-        ocr_result = await ocr.process_image(image_bytes)
+        merged_parsed = []
+        merged_wrong: list[int] = []
+        merged_text_parts: list[str] = []
+        seen_nums: set[int] = set()
+
+        for img_bytes in image_bytes_list:
+            r = await ocr.process_image(img_bytes)
+            merged_text_parts.append(r.full_text)
+            for pq in r.parsed_questions:
+                if pq.num not in seen_nums:
+                    seen_nums.add(pq.num)
+                    merged_parsed.append(pq)
+            merged_wrong.extend(r.wrong_question_nums)
+
+        merged_parsed.sort(key=lambda q: q.num)
+        ocr_result = OCRResult(
+            full_text="\n".join(merged_text_parts),
+            parsed_questions=merged_parsed,
+            wrong_question_nums=sorted(set(merged_wrong)),
+            confidence=0.9 if merged_parsed else 0.0,
+        )
 
         # 2단계: 오답 분석 (동기 메서드, AnalysisResult 반환)
         analyzer = ExamAnalyzer()

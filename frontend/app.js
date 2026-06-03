@@ -250,20 +250,20 @@ function formatBytes(bytes) {
 // ANALYZE — Step 2 → 3
 // ---------------------------------------------------------------
 async function runAnalysis() {
-  // window._selectedFile: onchange 인라인 핸들러가 설정한 폴백
-  const fileToUpload = selectedFile || window._selectedFile || null;
-  if (!fileToUpload) {
+  // 다중 파일: window._selectedFiles (인라인 핸들러가 설정), 폴백: 단일
+  let files = window._selectedFiles
+    || (selectedFile ? [selectedFile] : (window._selectedFile ? [window._selectedFile] : []));
+  if (!files.length) {
     showToast('이미지를 먼저 선택해주세요.', 'error');
     return;
   }
-  selectedFile = fileToUpload;
   try {
     analyzeBtn.disabled = true;
     const btnText = analyzeBtn.querySelector('.btn-text');
-    if (btnText) btnText.textContent = '전송 중...';
+    if (btnText) btnText.textContent = `전송 중... (${files.length}장)`;
 
     const formData = new FormData();
-    formData.append('image', selectedFile);
+    files.forEach((f) => formData.append('images', f));
 
     const res = await fetch(`${API_BASE}/api/analyze`, {
       method: 'POST',
@@ -539,4 +539,4 @@ function escapeHtml(str) {
 // ---------------------------------------------------------------
 window.sendToKakao = sendToKakao;
 window.appReady    = true;   // app.js 끝까지 실행됐다는 플래그
-console.log('[app.js] 로드 완료 (v7)');
+console.log('[app.js] 로드 완료 (v8)');
