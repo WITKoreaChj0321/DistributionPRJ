@@ -31,6 +31,7 @@ class WrongQuestion:
     selected_answer: int
     correct_answer: Optional[int]
     subject: str
+    options: list[str] = None  # 보기 중복 판단용 (OCR 추출 시 채워짐)
 
 
 @dataclass

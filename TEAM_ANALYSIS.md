@@ -68,7 +68,7 @@ class AnalysisResult:
 
 | 마킹 패턴 | 감지 방법 |
 |----------|----------|
-| `X` / `×` / `✗` | 텍스트 레이어 패턴 매칭 |
+| `X` / `/` / `✗` | 텍스트 레이어 패턴 매칭 |
 | 빨간 동그라미 | 색상 영역 분석 (Vision API bounding box) |
 | 취소선 | 텍스트 위치와 선분 교차 감지 |
 
@@ -77,10 +77,52 @@ class AnalysisResult:
 | 항목 | 값 |
 |------|-----|
 | 모델 | `paraphrase-multilingual-MiniLM-L12-v2` |
-| 검색 방식 | 코사인 유사도 |
+| 검색 방식 | 코사인 유사도 (1차) + 보기 중복 판단 (2차) |
 | 최소 유사도 | 0.5 |
 | 문제당 반환 수 | 상위 3개 |
 | 같은 과목 우선 | 옵션 지원 |
+
+## 비슷한 유형 판단 기준
+
+5지 선다 보기(①~⑤) 중 **1개 이상 동일한 보기 텍스트가 중복**되는 문제를 "비슷한 유형"으로 분류한다.
+
+### 판단 로직
+
+```
+1차 검색: 문제 텍스트 벡터 유사도 (코사인, 임계값 0.5 이상)
+      ↓
+2차 필터: 보기 중복 검사
+  - 후보 문제의 options 리스트와 오답 문제의 options 비교
+  - 동일한 보기 문자열이 1개 이상 존재 → 비슷한 유형으로 가중치 부여
+  - 중복 보기 수가 많을수록 유사도 점수 보정 (최대 +0.1)
+      ↓
+최종 정렬: 보정된 유사도 내림차순
+```
+
+### 보기 중복 판단 규칙
+
+| 중복 보기 수 | 판단 | 유사도 보정 |
+|------------|------|------------|
+| 0개 | 유형 무관 | 0 |
+| 1개 | 비슷한 유형 | +0.03 |
+| 2개 | 유사 유형 | +0.06 |
+| 3개 이상 | 매우 유사 유형 | +0.10 |
+
+### 구현 위치
+
+`backend/search.py` — `SimilarQuestionSearcher._search_for_one()` 내 후처리 단계
+
+```python
+def _option_overlap_bonus(wrong_opts: list[str], candidate_opts: list[str]) -> float:
+    """동일 보기 수에 따른 유사도 보정값 반환."""
+    w = {o.strip() for o in wrong_opts if o.strip()}
+    c = {o.strip() for o in candidate_opts if o.strip()}
+    overlap = len(w & c)
+    if overlap == 0: return 0.0
+    if overlap == 1: return 0.03
+    if overlap == 2: return 0.06
+    return 0.10
+```
 
 ## 클래스 인터페이스
 

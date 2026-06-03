@@ -11,6 +11,17 @@ from backend.vectordb import VectorDBManager
 SIMILARITY_THRESHOLD = 0.5
 
 
+def _option_overlap_bonus(wrong_opts: list[str], candidate_opts: list[str]) -> float:
+    """5지 선다 보기 중 동일 텍스트 중복 수에 따른 유사도 보정값."""
+    w = {o.strip() for o in wrong_opts if o.strip()}
+    c = {o.strip() for o in candidate_opts if o.strip()}
+    overlap = len(w & c)
+    if overlap == 0: return 0.0
+    if overlap == 1: return 0.03
+    if overlap == 2: return 0.06
+    return 0.10  # 3개 이상
+
+
 class SimilarQuestionSearcher:
     def __init__(self, vectordb: VectorDBManager):
         self._db = vectordb
@@ -57,9 +68,21 @@ class SimilarQuestionSearcher:
             )
         ]
 
-        # 유사도 내림차순 정렬 후 top_k 반환
-        candidates.sort(key=lambda x: x["similarity"], reverse=True)
-        return candidates[:top_k]
+        # 보기 중복 보정: 동일 보기 1개 이상 → 비슷한 유형으로 가중치 부여
+        # wq.options 는 OCR 파이프라인에서 추출된 경우에만 존재
+        wrong_opts: list[str] = getattr(wq, "options", [])
+        adjusted: list[dict] = []
+        for c in candidates:
+            bonus = _option_overlap_bonus(wrong_opts, c.get("options", []))
+            if bonus > 0:
+                c = dict(c)
+                c["similarity"]     = round(min(1.0, c["similarity"] + bonus), 4)
+                c["option_overlap"] = True
+            adjusted.append(c)
+
+        # 보정된 유사도 내림차순 정렬 후 top_k 반환
+        adjusted.sort(key=lambda x: x["similarity"], reverse=True)
+        return adjusted[:top_k]
 
     async def search_by_text(
         self,
