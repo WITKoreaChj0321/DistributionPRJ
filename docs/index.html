@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>유통관리사 오답 분석기</title>
-  <link rel="stylesheet" href="/static/style.css" />
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
 
@@ -28,12 +28,12 @@
       <div class="step-indicator">
         <div class="step active" id="step-1">
           <span class="step-num">1</span>
-          <span class="step-label">사진 업로드</span>
+          <span class="step-label">카카오 연동</span>
         </div>
         <div class="step-line"></div>
         <div class="step" id="step-2">
           <span class="step-num">2</span>
-          <span class="step-label">카카오 연동</span>
+          <span class="step-label">사진 업로드</span>
         </div>
         <div class="step-line"></div>
         <div class="step" id="step-3">
@@ -42,83 +42,130 @@
         </div>
       </div>
 
-      <!-- ===== SECTION 1: UPLOAD ===== -->
-      <section class="card section-upload" id="section-upload">
+      <!-- ===== SECTION 1: KAKAO ===== -->
+      <section class="card section-kakao" id="section-kakao">
+        <h2 class="section-title">
+          <span class="section-num">1</span>
+          카카오톡 연동 <span style="font-size:.8rem;font-weight:400;color:#94A3B8;">(선택)</span>
+        </h2>
+        <p class="section-desc">로그인하면 분석 결과를 카카오톡으로 전송할 수 있습니다.</p>
+
+        <!-- 미로그인 상태 -->
+        <div class="kakao-login-area" id="kakao-login-area">
+          <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button"
+                  onclick="window.location.href='/auth/kakao';">
+            <span class="kakao-icon">&#128172;</span>
+            카카오 로그인
+          </button>
+          <p class="kakao-hint">로그인 후 분석이 끝나면 결과를 자동으로 전송합니다.</p>
+        </div>
+
+        <!-- 로그인 완료 상태 -->
+        <div class="kakao-friend-area hidden" id="kakao-friend-area">
+          <div class="kakao-user-info" id="kakao-user-info">
+            <div class="user-avatar" id="user-avatar">&#128100;</div>
+            <div class="user-details">
+              <span class="user-name" id="user-name">사용자</span>
+              <span class="user-logged-in">로그인됨 — 분석 후 자동 전송</span>
+            </div>
+            <button class="btn btn-sm btn-ghost" id="kakao-logout-btn" type="button">로그아웃</button>
+          </div>
+          <!-- 전송 대상 선택 (결과 화면에서도 사용) -->
+          <div class="friend-select-wrap">
+            <label class="form-label" for="friend-select">전송 대상</label>
+            <div class="select-wrap">
+              <select class="form-select" id="friend-select">
+                <option value="me">나에게 보내기</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <!-- 항상 표시: 업로드로 이동 버튼 -->
+        <div style="margin-top:24px; display:flex; flex-direction:column; gap:10px;">
+          <button class="btn btn-primary btn-lg" id="go-upload-btn" type="button"
+                  onclick="document.getElementById('section-kakao').classList.add('hidden');document.getElementById('section-upload').classList.remove('hidden');document.getElementById('step-1').classList.replace('active','done')||document.getElementById('step-1').classList.add('done');document.getElementById('step-2').classList.add('active');window.scrollTo({top:0});">
+            사진 업로드하기 &#9658;
+          </button>
+          <button class="btn btn-ghost" id="skip-kakao-btn" type="button"
+                  onclick="document.getElementById('section-kakao').classList.add('hidden');document.getElementById('section-upload').classList.remove('hidden');document.getElementById('step-1').classList.replace('active','done')||document.getElementById('step-1').classList.add('done');document.getElementById('step-2').classList.add('active');window.scrollTo({top:0});">
+            로그인 없이 계속하기
+          </button>
+        </div>
+      </section>
+
+      <!-- 숨겨진 호환성용 더미 (app.js getElementById 오류 방지) -->
+      <span id="send-kakao-btn" style="display:none"></span>
+
+      <!-- ===== SECTION 2: UPLOAD ===== -->
+      <section class="card section-upload hidden" id="section-upload">
         <h2 class="section-title">
           <span class="section-num">1</span>
           시험지 사진 업로드
         </h2>
         <p class="section-desc">시험지 또는 답안지 사진을 업로드하면 AI가 오답을 자동으로 분석합니다.</p>
 
-        <div class="upload-area" id="upload-area">
-          <input type="file" id="file-input" accept="image/*" hidden />
+        <!-- file-input: multiple + label 연동 + onchange 인라인 처리 -->
+        <input type="file" id="file-input" accept="image/*" multiple style="display:none"
+          onchange="(function(inp){
+            var files=Array.from(inp.files||[]); if(!files.length)return;
+            window._selectedFiles=files;
+            window._selectedFile=files[0];
+            var ph=document.getElementById('upload-placeholder');
+            var pv=document.getElementById('upload-preview');
+            ph.classList.add('hidden'); pv.classList.remove('hidden');
+            var r=new FileReader();
+            r.onload=function(e){ document.getElementById('preview-img').src=e.target.result; };
+            r.readAsDataURL(files[0]);
+            var extra = files.length>1 ? (' 외 '+(files.length-1)+'장') : '';
+            document.getElementById('preview-info').textContent=files.length+'장 선택됨 — '+files[0].name+extra;
+            var cw=document.getElementById('change-wrap'); if(cw)cw.classList.remove('hidden');
+            document.getElementById('analyze-btn').removeAttribute('disabled');
+          })(this)" />
+
+        <label class="upload-area" id="upload-area" for="file-input">
           <div class="upload-placeholder" id="upload-placeholder">
             <div class="upload-icon">&#128247;</div>
-            <p class="upload-main-text">사진을 드래그하거나 클릭해서 업로드</p>
-            <p class="upload-sub-text">JPG, PNG, HEIC 지원 · 최대 20MB</p>
-            <button class="btn btn-outline" type="button" id="upload-btn">파일 선택</button>
+            <p class="upload-main-text">클릭하거나 사진을 드래그해서 업로드</p>
+            <p class="upload-sub-text">여러 장 한 번에 선택 가능 · JPG, PNG, HEIC · 각 최대 20MB</p>
+            <span class="btn btn-outline" id="upload-btn" style="pointer-events:none;">파일 선택 (여러 장 가능)</span>
           </div>
           <div class="upload-preview hidden" id="upload-preview">
             <img id="preview-img" src="" alt="업로드된 시험지 미리보기" />
-            <div class="preview-overlay">
-              <button class="btn btn-sm btn-outline-white" id="change-file-btn" type="button">사진 변경</button>
-            </div>
             <div class="preview-info" id="preview-info"></div>
           </div>
+        </label>
+
+        <!-- 사진 변경: label 외부에 배치 (label 중첩 불가) -->
+        <div id="change-wrap" class="hidden" style="text-align:right; margin-top:6px;">
+          <label class="btn btn-sm btn-outline" for="file-input" id="change-file-btn">사진 다시 선택</label>
+        </div>
+
+        <!-- 틀린 문제 번호 직접 입력 (선택) -->
+        <div style="margin-top:18px; padding:16px; background:#F8FAFC; border:1px solid #E2E8F0; border-radius:12px;">
+          <label class="form-label" for="wrong-numbers-input">
+            ✏️ 틀린 문제 번호 직접 입력 <span style="font-weight:400;color:#94A3B8;">(선택 — 비우면 자동 감지)</span>
+          </label>
+          <input type="text" id="wrong-numbers-input" class="form-select" inputmode="numeric"
+                 placeholder="예: 33, 35  (쉼표 또는 공백으로 구분)"
+                 style="margin-bottom:10px;" />
+          <div style="display:flex; gap:8px;">
+            <input type="number" id="exam-year-input" class="form-select" min="2010" max="2030"
+                   placeholder="연도 (예: 2024)" style="flex:1;" />
+            <input type="number" id="exam-round-input" class="form-select" min="1" max="4"
+                   placeholder="회차 (예: 1)" style="width:120px;" />
+          </div>
+          <p style="font-size:.76rem; color:#94A3B8; margin-top:8px;">
+            연도/회차를 입력하면 더 정확히 정답을 매칭합니다. 비우면 사진에서 자동 인식합니다.
+          </p>
         </div>
 
         <div class="upload-actions">
-          <button class="btn btn-primary btn-lg" id="analyze-btn" disabled>
+          <button class="btn btn-primary btn-lg" id="analyze-btn" disabled
+                  onclick="if(window.runAnalysis){window.runAnalysis();}else{alert('스크립트 로딩 중입니다. 잠시 후 다시 시도해주세요.');}">
             <span class="btn-text">오답 분석 시작</span>
             <span class="btn-icon">&#9658;</span>
           </button>
-        </div>
-      </section>
-
-      <!-- ===== SECTION 2: KAKAO ===== -->
-      <section class="card section-kakao hidden" id="section-kakao">
-        <h2 class="section-title">
-          <span class="section-num">2</span>
-          카카오톡 연동
-        </h2>
-        <p class="section-desc">분석 결과와 유사 기출문제를 카카오톡으로 받아볼 수 있습니다.</p>
-
-        <div class="kakao-login-area" id="kakao-login-area">
-          <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button">
-            <span class="kakao-icon">&#128172;</span>
-            카카오 로그인
-          </button>
-          <p class="kakao-hint">카카오 계정으로 로그인하면 나 또는 친구에게 결과를 전송할 수 있습니다.</p>
-        </div>
-
-        <div class="kakao-friend-area hidden" id="kakao-friend-area">
-          <div class="kakao-user-info" id="kakao-user-info">
-            <div class="user-avatar" id="user-avatar">&#128100;</div>
-            <div class="user-details">
-              <span class="user-name" id="user-name">사용자</span>
-              <span class="user-logged-in">로그인됨</span>
-            </div>
-            <button class="btn btn-sm btn-ghost" id="kakao-logout-btn" type="button">로그아웃</button>
-          </div>
-
-          <div class="friend-select-wrap">
-            <label class="form-label" for="friend-select">전송 대상 선택</label>
-            <div class="select-wrap">
-              <select class="form-select" id="friend-select">
-                <option value="">친구를 선택하세요</option>
-                <option value="me">나에게 보내기</option>
-              </select>
-            </div>
-          </div>
-
-          <button class="btn btn-kakao btn-lg" id="send-kakao-btn" type="button" disabled>
-            <span class="kakao-icon">&#128172;</span>
-            카카오톡으로 전송
-          </button>
-        </div>
-
-        <div class="skip-wrap">
-          <button class="btn btn-ghost" id="skip-kakao-btn" type="button">건너뛰고 결과만 보기</button>
         </div>
       </section>
 
@@ -192,13 +239,15 @@
           </div>
         </div>
 
-        <!-- 재전송 / 다시하기 -->
+        <!-- 재전송 / 다시하기 (인라인 onclick 백업) -->
         <div class="result-actions">
-          <button class="btn btn-kakao" id="resend-kakao-btn" type="button">
+          <button class="btn btn-kakao" id="resend-kakao-btn" type="button"
+                  onclick="if(window.sendToKakao){window.sendToKakao();}">
             <span class="kakao-icon">&#128172;</span>
             카카오톡으로 전송
           </button>
-          <button class="btn btn-outline" id="restart-btn" type="button">새로 분석하기</button>
+          <button class="btn btn-outline" id="restart-btn" type="button"
+                  onclick="location.reload();">새로 분석하기</button>
         </div>
       </section>
 
@@ -218,6 +267,17 @@
     </div>
   </footer>
 
-  <script src="/static/app.js"></script>
+  <!-- GitHub Pages 데모 안내: 백엔드(분석) 없이 UI만 동작 -->
+  <script>
+    if (location.hostname.endsWith('github.io')) {
+      window.addEventListener('DOMContentLoaded', function () {
+        var b = document.createElement('div');
+        b.style.cssText = 'background:#FEF3C7;color:#92400E;padding:10px 16px;text-align:center;font-size:.85rem;font-weight:600;border-bottom:1px solid #FCD34D;';
+        b.innerHTML = '⚠️ 데모 UI입니다. 실제 분석은 로컬 서버(localhost:8000)에서 실행하세요. <a href="https://github.com/WITKoreaChj0321/DistributionPRJ" style="color:#92400E;text-decoration:underline;">설치 안내</a>';
+        document.body.insertBefore(b, document.body.firstChild);
+      });
+    }
+  </script>
+  <script src="app.js?v=10"></script>
 </body>
 </html>

@@ -72,6 +72,7 @@ let pollTimer     = null;
 let kakaoLoggedIn = false;
 let kakaoToken    = null;
 let resultData    = null;
+let toastTimer    = null;   // showToast()보다 먼저 선언 (TDZ 에러 방지)
 
 // ---------------------------------------------------------------
 // INIT — 카카오 OAuth 콜백 처리
@@ -536,7 +537,6 @@ restartBtn.addEventListener('click', () => {
 // ---------------------------------------------------------------
 // TOAST
 // ---------------------------------------------------------------
-let toastTimer = null;
 function showToast(msg, type = 'info') {
   const icons = { success: '✓', error: '✕', info: 'ℹ' };
   toastIcon.textContent = icons[type] || '';
