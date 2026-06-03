@@ -62,16 +62,18 @@ async def analyze_image(
 
 
 @router.get("/frequent")
-async def frequent_questions(top: int = 10) -> dict:
-    """최빈출 기출문제 리스트 (여러 연도 반복 출제 유형)."""
+async def frequent_questions(top: int = 20, subject: str = "전체") -> dict:
+    """최빈출 기출문제 리스트 (여러 연도 반복 출제 유형). subject로 과목 필터."""
     from ..frequent import compute_frequent
     from ..vectordb import VectorDBManager
     import asyncio
 
     vector_db = VectorDBManager()
     loop = asyncio.get_running_loop()
-    items = await loop.run_in_executor(None, compute_frequent, vector_db, top)
-    return {"count": len(items), "questions": items}
+    items = await loop.run_in_executor(
+        None, compute_frequent, vector_db, top, subject
+    )
+    return {"count": len(items), "subject": subject, "questions": items}
 
 
 @router.get("/result/{task_id}")

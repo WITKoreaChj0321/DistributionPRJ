@@ -282,15 +282,22 @@ class KakaoClient:
         messages: list[str] = []
 
         # 1) 요약 헤더
-        nums = ", ".join(str(q.get("question_num", "?")) for q in wrong_qs) or "없음"
-        head = (
-            f"📚 유통관리사 오답 분석 결과\n\n"
-            f"틀린 문제: {nums}번 ({len(wrong_qs)}개)\n"
-            f"유사 기출문제 {len(similar_qs)}개"
-        )
-        if frequent_qs:
-            head += f"\n최빈출 기출 {len(frequent_qs)}개"
-        head += "\n\n아래에 문제별 상세를 보내드립니다."
+        if wrong_qs or similar_qs:
+            nums = ", ".join(str(q.get("question_num", "?")) for q in wrong_qs) or "없음"
+            head = (
+                f"📚 유통관리사 오답 분석 결과\n\n"
+                f"틀린 문제: {nums}번 ({len(wrong_qs)}개)\n"
+                f"유사 기출문제 {len(similar_qs)}개"
+            )
+            if frequent_qs:
+                head += f"\n최빈출 기출 {len(frequent_qs)}개"
+        else:
+            # 최빈출 전용 전송
+            head = (
+                f"🔥 유통관리사 최빈출 기출문제\n\n"
+                f"여러 해 반복 출제된 핵심 {len(frequent_qs)}문제를 보내드립니다."
+            )
+        head += "\n\n아래에 문제별 상세를 보내드립니다." if (wrong_qs or similar_qs) else ""
         messages.append(head)
 
         # 2) 틀린 문제 각각 (본문 + 정답)

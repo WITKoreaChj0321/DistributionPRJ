@@ -45,11 +45,21 @@ def _ans_content(doc: str, meta: dict) -> str:
     return f"{circle} {content}".strip()
 
 
-def compute_frequent(vector_db, top_n: int = 10, use_cache: bool = True) -> list[dict]:
-    """최빈출 기출문제 top_n개 반환 (빈출 점수 내림차순)."""
+def compute_frequent(
+    vector_db, top_n: int = 10, subject: str | None = None, use_cache: bool = True
+) -> list[dict]:
+    """최빈출 기출문제 반환 (빈출 점수 내림차순). subject로 과목 필터."""
+    all_items = _compute_all(vector_db, use_cache)
+    if subject and subject != "전체":
+        all_items = [q for q in all_items if q["subject"] == subject]
+    return all_items[:top_n]
+
+
+def _compute_all(vector_db, use_cache: bool = True) -> list[dict]:
+    """전체 최빈출 리스트 계산 (캐시)."""
     global _cache
     if use_cache and _cache is not None:
-        return _cache[:top_n]
+        return _cache
 
     col = vector_db.get_collection()
     data = col.get(include=["documents", "metadatas", "embeddings"])
@@ -96,8 +106,6 @@ def compute_frequent(vector_db, top_n: int = 10, use_cache: bool = True) -> list
             "answer_content": _ans_content(docs[i], metas[i]),
             "frequency":     cnt,
         })
-        if len(result) >= top_n:
-            break
 
     _cache = result
     return result

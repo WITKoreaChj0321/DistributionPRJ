@@ -117,6 +117,52 @@ async def get_friends(token: str) -> dict:
     }
 
 
+class SendFrequentRequest(BaseModel):
+    friend_uuid: str  # "me" 이면 나에게 보내기
+    token: str
+    top: int = 10
+    subject: str = "전체"
+
+
+@router.post("/api/send-frequent")
+async def send_frequent(body: SendFrequentRequest) -> dict:
+    """최빈출 기출문제를 카카오톡으로 전송합니다."""
+    import asyncio
+    from ..frequent import compute_frequent
+    from ..vectordb import VectorDBManager
+
+    loop = asyncio.get_running_loop()
+    items = await loop.run_in_executor(
+        None, compute_frequent, VectorDBManager(), body.top, body.subject
+    )
+    if not items:
+        raise HTTPException(status_code=404, detail="최빈출 문제가 없습니다.")
+
+    client = _get_kakao_client()
+    try:
+        if body.friend_uuid == "me":
+            success = await client.send_message_to_me(
+                access_token=body.token,
+                wrong_questions=[],
+                similar_questions=[],
+                frequent_questions=items,
+            )
+        else:
+            success = await client.send_message_to_friend(
+                access_token=body.token,
+                receiver_uuid=body.friend_uuid,
+                wrong_questions=[],
+                similar_questions=[],
+                frequent_questions=items,
+            )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"카카오톡 전송 실패: {exc}")
+
+    if not success:
+        raise HTTPException(status_code=502, detail="메시지 전송에 실패했습니다.")
+    return {"success": True, "sent_count": len(items)}
+
+
 class SendKakaoRequest(BaseModel):
     task_id: str
     friend_uuid: str  # "me" 이면 나에게 보내기

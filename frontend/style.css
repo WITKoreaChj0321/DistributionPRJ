@@ -835,6 +835,20 @@ body {
 
 .kakao-icon { font-size: 1.05rem; }
 
+/* ── SUBJECT TABS ───────────────────────────────── */
+.subject-tab {
+  background: var(--surface);
+  color: var(--text-2);
+  border: 1.5px solid var(--border);
+  font-weight: 600;
+}
+.subject-tab:hover { background: var(--primary-light); border-color: rgba(99,102,241,.3); }
+.subject-tab.active {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+}
+
 /* ── TOAST ───────────────────────────────────────── */
 .toast {
   position: fixed;
