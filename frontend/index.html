@@ -82,10 +82,12 @@
 
         <!-- 항상 표시: 업로드로 이동 버튼 -->
         <div style="margin-top:24px; display:flex; flex-direction:column; gap:10px;">
-          <button class="btn btn-primary btn-lg" id="go-upload-btn" type="button">
+          <button class="btn btn-primary btn-lg" id="go-upload-btn" type="button"
+                  onclick="document.getElementById('section-kakao').classList.add('hidden');document.getElementById('section-upload').classList.remove('hidden');document.getElementById('step-1').classList.replace('active','done')||document.getElementById('step-1').classList.add('done');document.getElementById('step-2').classList.add('active');window.scrollTo({top:0});">
             사진 업로드하기 &#9658;
           </button>
-          <button class="btn btn-ghost" id="skip-kakao-btn" type="button">
+          <button class="btn btn-ghost" id="skip-kakao-btn" type="button"
+                  onclick="document.getElementById('section-kakao').classList.add('hidden');document.getElementById('section-upload').classList.remove('hidden');document.getElementById('step-1').classList.replace('active','done')||document.getElementById('step-1').classList.add('done');document.getElementById('step-2').classList.add('active');window.scrollTo({top:0});">
             로그인 없이 계속하기
           </button>
         </div>
@@ -223,6 +225,6 @@
     </div>
   </footer>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=3"></script>
 </body>
 </html>
