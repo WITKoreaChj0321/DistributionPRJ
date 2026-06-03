@@ -309,6 +309,9 @@ analyzeBtn.addEventListener('click', runAnalysis);
 // POLLING — Step 3
 // ---------------------------------------------------------------
 function startPolling() {
+  // 기존 타이머가 남아있으면 반드시 정리 (중복 폴링·중복 전송 방지)
+  if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+
   let tries = 0;
   setProgress(5, 'AI가 이미지를 분석하고 있습니다...');
   setProgStep('ocr');
@@ -351,8 +354,7 @@ function handlePollResponse(data) {
       resultData = data;
       renderResults(data);
       showSection('results');
-      // 카카오 로그인 상태면 자동 전송
-      if (kakaoLoggedIn && friendSelect.value) sendToKakao();
+      // 자동 전송 제거 — 사용자가 '카카오톡으로 전송' 버튼을 눌러야 전송 (중복 방지)
     }, 600);
   } else if (status === 'error' || status === 'failed') {
     clearInterval(pollTimer);
@@ -484,12 +486,16 @@ function renderSimilarQuestions(list) {
 // ---------------------------------------------------------------
 resendKakaoBtn.addEventListener('click', () => sendToKakao());
 
+let _kakaoSending = false;   // 중복 전송 방지 플래그
+
 async function sendToKakao() {
+  if (_kakaoSending) return;  // 이미 전송 중이면 무시
   if (!currentTaskId) { showToast('분석 결과가 없습니다.', 'error'); return; }
   if (!kakaoLoggedIn) { showToast('카카오 로그인이 필요합니다.', 'info'); return; }
 
   const friendUuid = friendSelect.value || 'me';
   try {
+    _kakaoSending = true;
     resendKakaoBtn.disabled = true;
     const res = await fetch(`${API_BASE}/api/send-kakao`, {
       method:  'POST',
@@ -505,6 +511,7 @@ async function sendToKakao() {
     showToast(err.message || '카카오톡 전송에 실패했습니다.', 'error');
   } finally {
     resendKakaoBtn.disabled = false;
+    _kakaoSending = false;
   }
 }
 
