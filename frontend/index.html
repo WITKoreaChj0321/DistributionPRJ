@@ -238,6 +238,16 @@
           </div>
         </div>
 
+        <!-- 전송 대상 선택 (로그인 시에만 표시) -->
+        <div id="result-send-target" class="friend-select-wrap hidden" style="margin-bottom:14px;">
+          <label class="form-label" for="friend-select-result">📨 전송 대상</label>
+          <div class="select-wrap">
+            <select class="form-select" id="friend-select-result">
+              <option value="me">나에게 보내기</option>
+            </select>
+          </div>
+        </div>
+
         <!-- 재전송 / 다시하기 (인라인 onclick 백업) -->
         <div class="result-actions">
           <button class="btn btn-kakao" id="resend-kakao-btn" type="button">
@@ -265,6 +275,6 @@
     </div>
   </footer>
 
-  <script src="/static/app.js?v=11"></script>
+  <script src="/static/app.js?v=12"></script>
 </body>
 </html>

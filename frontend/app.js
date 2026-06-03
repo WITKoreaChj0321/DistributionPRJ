@@ -175,12 +175,27 @@ async function loadFriends() {
     const res  = await fetch(`${API_BASE}/api/kakao/friends?token=${encodeURIComponent(kakaoToken)}`);
     if (!res.ok) return;
     const data = await res.json();
-    (data.friends || []).forEach((f) => {
-      const opt = document.createElement('option');
-      opt.value       = f.uuid;
-      opt.textContent = f.nickname || '알 수 없음';
-      friendSelect.appendChild(opt);
+    const friends = data.friends || [];
+    const resultSelect = document.getElementById('friend-select-result');
+
+    friends.forEach((f) => {
+      // 카카오 섹션 드롭다운
+      const o1 = document.createElement('option');
+      o1.value = f.uuid; o1.textContent = f.nickname || '알 수 없음';
+      friendSelect.appendChild(o1);
+      // 결과 화면 드롭다운
+      if (resultSelect) {
+        const o2 = document.createElement('option');
+        o2.value = f.uuid; o2.textContent = f.nickname || '알 수 없음';
+        resultSelect.appendChild(o2);
+      }
     });
+
+    // 친구가 있으면 결과 화면 전송 대상 선택 UI 표시
+    if (friends.length) {
+      const wrap = document.getElementById('result-send-target');
+      if (wrap) wrap.classList.remove('hidden');
+    }
   } catch (e) {
     console.warn('친구 목록 로드 실패:', e.message);
   }
@@ -493,7 +508,9 @@ async function sendToKakao() {
   if (!currentTaskId) { showToast('분석 결과가 없습니다.', 'error'); return; }
   if (!kakaoLoggedIn) { showToast('카카오 로그인이 필요합니다.', 'info'); return; }
 
-  const friendUuid = friendSelect.value || 'me';
+  // 전송 대상: 결과 화면 드롭다운 우선, 없으면 카카오 섹션 드롭다운
+  const resultSelect = document.getElementById('friend-select-result');
+  const friendUuid = (resultSelect && resultSelect.value) || friendSelect.value || 'me';
   try {
     _kakaoSending = true;
     resendKakaoBtn.disabled = true;
