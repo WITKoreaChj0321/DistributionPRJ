@@ -67,15 +67,16 @@ class VectorDBManager:
         {
             "id": str,
             "question_text": str,
-            "year": int,
-            "round": int,
-            "subject": str,
-            "question_num": int,
-            "options": list[str],
-            "answer": int,
-            "explanation": str,
+            "year": int, "round": int, "subject": str,
+            "question_num": int, "options": list[str],
+            "answer": int, "explanation": str,
         }
         """
+        if not questions:
+            return
+
+        # 빈 question_text 제외 (ChromaDB 빈 문서 거부)
+        questions = [q for q in questions if q.get("question_text", "").strip()]
         if not questions:
             return
 
@@ -115,8 +116,19 @@ class VectorDBManager:
         n_results: int = 5,
         subject_filter: Optional[str] = None,
     ) -> list[dict]:
+        if not query_text.strip():
+            return []
+
         loop = asyncio.get_running_loop()
         collection = self.get_collection()
+
+        # 빈 컬렉션 조기 반환
+        total = collection.count()
+        if total == 0:
+            return []
+
+        # n_results를 실제 문서 수로 clamp (ChromaDB 오류 방지)
+        safe_n = min(n_results, total)
 
         query_embedding = await loop.run_in_executor(
             None, self._embed, [query_text]
@@ -124,17 +136,24 @@ class VectorDBManager:
 
         where = {"subject": subject_filter} if subject_filter else None
 
-        def _query():
+        def _query(w: Optional[dict], n: int):
             kwargs: dict = {
                 "query_embeddings": query_embedding,
-                "n_results": n_results,
+                "n_results": n,
                 "include": ["documents", "metadatas", "distances"],
             }
-            if where:
-                kwargs["where"] = where
+            if w:
+                kwargs["where"] = w
             return collection.query(**kwargs)
 
-        results = await loop.run_in_executor(None, _query)
+        try:
+            results = await loop.run_in_executor(None, _query, where, safe_n)
+        except Exception:
+            # subject_filter 결과가 n_results보다 적으면 필터 없이 재시도
+            if where:
+                results = await loop.run_in_executor(None, _query, None, safe_n)
+            else:
+                return []
 
         output: list[dict] = []
         ids = results.get("ids", [[]])[0]
@@ -143,10 +162,9 @@ class VectorDBManager:
         distances = results.get("distances", [[]])[0]
 
         for doc_id, doc, meta, dist in zip(ids, docs, metas, distances):
-            # cosine distance -> similarity (0~1)
-            similarity = 1.0 - float(dist)
+            similarity = 1.0 - float(dist)  # cosine distance → similarity
             options_raw = meta.get("options", "")
-            options = options_raw.split("\n") if options_raw else []
+            options = [o for o in options_raw.split("\n") if o] if options_raw else []
 
             output.append({
                 "id": doc_id,
