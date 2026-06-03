@@ -82,10 +82,25 @@ let resultData     = null;
 
   if (token) {
     kakaoToken = token;
+
+    // OAuth 이전에 저장했던 task ID 복원
+    const savedTaskId = sessionStorage.getItem('_kakao_task_id');
+    if (savedTaskId) {
+      currentTaskId = savedTaskId;
+      sessionStorage.removeItem('_kakao_task_id');
+    }
+
     handleKakaoLoginSuccess({
       nickname:      params.get('nickname')      || '카카오 사용자',
       profile_image: params.get('profile_image') || '',
     });
+
+    // task ID가 있으면 카카오 섹션으로 복귀
+    if (currentTaskId) {
+      showSection('kakao');
+      setStep(2);
+    }
+
     history.replaceState({}, '', window.location.pathname);
   }
   if (error) {
@@ -235,6 +250,8 @@ function showSection(name) {
 // KAKAO LOGIN
 // ---------------------------------------------------------------
 kakaoLoginBtn.addEventListener('click', () => {
+  // OAuth 이동 전 task ID 저장 (리로드 후 복원)
+  if (currentTaskId) sessionStorage.setItem('_kakao_task_id', currentTaskId);
   window.location.href = `${API_BASE}/auth/kakao`;
 });
 
