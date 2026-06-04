@@ -9,6 +9,7 @@ let kakaoLoggedIn = false;
 let kakaoToken    = null;
 let currentSubject = '전체';
 let toastTimer    = null;
+let _allQuestions = null;   // 정적 JSON 캐시 (서버 불필요)
 
 // DOM
 const kakaoLoginArea  = document.getElementById('kakao-login-area');
@@ -84,18 +85,42 @@ document.querySelectorAll('.subject-tab').forEach((tab) => {
 
 countSelect.addEventListener('change', loadFrequent);
 
-// ── 최빈출 로드 ────────────────────────────────
-async function loadFrequent() {
-  const top = countSelect ? countSelect.value : 20;
-  freqList.innerHTML = '<p style="color:#94A3B8;font-size:.9rem;padding:20px 0;text-align:center;">불러오는 중...</p>';
-  try {
-    const res = await fetch(`${API_BASE}/api/frequent?top=${top}&subject=${encodeURIComponent(currentSubject)}`);
-    if (!res.ok) throw new Error();
-    const data = await res.json();
-    renderFrequent(data.questions || []);
-  } catch (e) {
-    freqList.innerHTML = '<p style="color:#EF4444;font-size:.9rem;padding:20px 0;text-align:center;">불러오지 못했습니다. 서버 실행을 확인하세요.</p>';
+// ── 최빈출 데이터 로드 (정적 JSON, 서버 불필요) ──
+async function fetchAllQuestions() {
+  if (_allQuestions) return _allQuestions;
+  // 여러 경로 시도: GitHub Pages(상대) → 로컬 서버(/static) → API 폴백
+  const urls = ['data/frequent.json', '/static/data/frequent.json'];
+  for (const u of urls) {
+    try {
+      const r = await fetch(u);
+      if (r.ok) {
+        const d = await r.json();
+        _allQuestions = d.questions || [];
+        return _allQuestions;
+      }
+    } catch (e) { /* 다음 경로 */ }
   }
+  // 최후 폴백: 서버 API (실시간 계산)
+  try {
+    const r = await fetch(`${API_BASE}/api/frequent?top=1000`);
+    if (r.ok) { _allQuestions = (await r.json()).questions || []; return _allQuestions; }
+  } catch (e) { /* */ }
+  return null;
+}
+
+// ── 최빈출 표시 (과목·개수 필터는 브라우저에서) ──
+async function loadFrequent() {
+  freqList.innerHTML = '<p style="color:#94A3B8;font-size:.9rem;padding:20px 0;text-align:center;">불러오는 중...</p>';
+  const all = await fetchAllQuestions();
+  if (!all) {
+    freqList.innerHTML = '<p style="color:#EF4444;font-size:.9rem;padding:20px 0;text-align:center;">데이터를 불러오지 못했습니다.</p>';
+    return;
+  }
+  const top = countSelect ? parseInt(countSelect.value, 10) : 20;
+  let filtered = currentSubject === '전체'
+    ? all
+    : all.filter((q) => q.subject === currentSubject);
+  renderFrequent(filtered.slice(0, top));
 }
 
 function renderFrequent(items) {
