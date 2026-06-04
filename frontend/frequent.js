@@ -5,17 +5,27 @@
 
 const API_BASE = '';
 
+// ⚠️ 카카오 JavaScript 키 (콘솔 → 앱 → 앱 키 → JavaScript 키)
+const KAKAO_JS_KEY = 'YOUR_KAKAO_JAVASCRIPT_KEY';
+
 let kakaoLoggedIn = false;
-let kakaoToken    = null;
 let currentSubject = '전체';
 let toastTimer    = null;
 let _allQuestions = null;   // 정적 JSON 캐시 (서버 불필요)
+
+// 카카오 SDK 초기화
+function initKakao() {
+  if (window.Kakao && KAKAO_JS_KEY && KAKAO_JS_KEY !== 'YOUR_KAKAO_JAVASCRIPT_KEY') {
+    if (!Kakao.isInitialized()) Kakao.init(KAKAO_JS_KEY);
+    return true;
+  }
+  return false;
+}
 
 // DOM
 const kakaoLoginArea  = document.getElementById('kakao-login-area');
 const kakaoFriendArea = document.getElementById('kakao-friend-area');
 const kakaoLogoutBtn  = document.getElementById('kakao-logout-btn');
-const friendSelect    = document.getElementById('friend-select');
 const userNameEl      = document.getElementById('user-name');
 const userAvatarEl    = document.getElementById('user-avatar');
 const freqList        = document.getElementById('frequent-list');
@@ -25,53 +35,56 @@ const toast           = document.getElementById('toast');
 const toastIcon       = document.getElementById('toast-icon');
 const toastMsg        = document.getElementById('toast-msg');
 
-// ── INIT: 카카오 콜백 ──────────────────────────
+// ── INIT ───────────────────────────────────────
 (function init() {
-  const p = new URLSearchParams(location.search);
-  const token = p.get('token');
-  if (token) {
-    kakaoToken = token;
-    onKakaoLogin({ nickname: p.get('nickname') || '카카오 사용자', profile_image: p.get('profile_image') || '' });
-    history.replaceState({}, '', location.pathname);
-  }
-  if (p.get('error')) {
-    showToast('카카오 로그인 실패: ' + p.get('error'), 'error');
-    history.replaceState({}, '', location.pathname);
+  initKakao();
+  // 이미 로그인된 세션 복원
+  if (window.Kakao && Kakao.isInitialized() && Kakao.Auth.getAccessToken()) {
+    fetchKakaoProfile();
   }
   loadFrequent();
 })();
 
-// ── 카카오 ─────────────────────────────────────
+// ── 카카오 로그인 (JS SDK, 서버 없이) ───────────
+document.getElementById('kakao-login-btn').addEventListener('click', () => {
+  if (!initKakao()) {
+    showToast('카카오 JavaScript 키가 설정되지 않았습니다.', 'error');
+    return;
+  }
+  Kakao.Auth.login({
+    scope: 'profile_nickname,profile_image,talk_message',
+    success: () => fetchKakaoProfile(),
+    fail: (err) => showToast('카카오 로그인 실패: ' + (err.error_description || JSON.stringify(err)), 'error'),
+  });
+});
+
+function fetchKakaoProfile() {
+  Kakao.API.request({
+    url: '/v2/user/me',
+    success: (res) => {
+      const p = (res.kakao_account && res.kakao_account.profile) || {};
+      onKakaoLogin({ nickname: p.nickname || '카카오 사용자', profile_image: p.profile_image_url || '' });
+    },
+    fail: () => onKakaoLogin({ nickname: '카카오 사용자', profile_image: '' }),
+  });
+}
+
 function onKakaoLogin(info) {
   kakaoLoggedIn = true;
   userNameEl.textContent = info.nickname || '사용자';
   if (info.profile_image) userAvatarEl.innerHTML = `<img src="${info.profile_image}" alt="프로필" />`;
   kakaoLoginArea.classList.add('hidden');
   kakaoFriendArea.classList.remove('hidden');
-  loadFriends();
   showToast(`${info.nickname || '사용자'}님 환영합니다!`, 'success');
 }
 
 kakaoLogoutBtn.addEventListener('click', () => {
-  kakaoLoggedIn = false; kakaoToken = null;
+  if (window.Kakao && Kakao.Auth.getAccessToken()) Kakao.Auth.logout();
+  kakaoLoggedIn = false;
   kakaoFriendArea.classList.add('hidden');
   kakaoLoginArea.classList.remove('hidden');
   showToast('로그아웃했습니다.', 'info');
 });
-
-async function loadFriends() {
-  if (!kakaoToken) return;
-  try {
-    const res = await fetch(`${API_BASE}/api/kakao/friends?token=${encodeURIComponent(kakaoToken)}`);
-    if (!res.ok) return;
-    const data = await res.json();
-    (data.friends || []).forEach((f) => {
-      const o = document.createElement('option');
-      o.value = f.uuid; o.textContent = f.nickname || '알 수 없음';
-      friendSelect.appendChild(o);
-    });
-  } catch (e) { /* 친구 목록 없으면 나에게 보내기만 */ }
-}
 
 // ── 과목 탭 ────────────────────────────────────
 document.querySelectorAll('.subject-tab').forEach((tab) => {
@@ -146,29 +159,65 @@ function renderFrequent(items) {
   });
 }
 
-// ── 카카오 전송 ────────────────────────────────
+// ── 카카오 메시지 빌더 (서버 kakao.py 포팅) ──────
+function buildFrequentMessages(items) {
+  const msgs = [
+    `🔥 유통관리사 최빈출 기출문제\n\n여러 해 반복 출제된 핵심 ${items.length}문제를 보내드립니다.`,
+  ];
+  items.forEach((q) => {
+    let body = (q.question_text || '').trim();
+    const head = `🔥 최빈출 [${q.subject}] ${q.frequency}개년 반복`;
+    const ansLine = `✅ 정답: ${q.answer_content || ''}`;
+    const maxBody = Math.max(0, 190 - head.length - ansLine.length - 6);
+    if (body.length > maxBody) body = body.slice(0, Math.max(0, maxBody - 3)) + '...';
+    msgs.push(`${head}\n\n${body}\n\n${ansLine}`);
+  });
+  return msgs;
+}
+
+// 카카오 memo(나에게 보내기) 1건 — Promise 래핑
+function sendMemo(text) {
+  return new Promise((resolve, reject) => {
+    Kakao.API.request({
+      url: '/v2/api/talk/memo/default/send',
+      data: {
+        template_object: JSON.stringify({
+          object_type: 'text',
+          text,
+          link: { web_url: 'https://www.comcbt.com', mobile_web_url: 'https://www.comcbt.com' },
+          button_title: '기출문제 더 풀기',
+        }),
+      },
+      success: resolve,
+      fail: reject,
+    });
+  });
+}
+
+// ── 카카오 전송 (JS SDK, 서버 없이) ─────────────
 let _sending = false;
 sendBtn.addEventListener('click', async () => {
   if (_sending) return;
   if (!kakaoLoggedIn) { showToast('카카오 로그인이 필요합니다.', 'info'); return; }
 
   const top = countSelect ? parseInt(countSelect.value, 10) : 20;
-  const friendUuid = friendSelect.value || 'me';
+  const all = await fetchAllQuestions();
+  if (!all) { showToast('데이터를 불러오지 못했습니다.', 'error'); return; }
+  let items = currentSubject === '전체' ? all : all.filter((q) => q.subject === currentSubject);
+  items = items.slice(0, top);
+
+  const messages = buildFrequentMessages(items);
   try {
     _sending = true; sendBtn.disabled = true;
-    const res = await fetch(`${API_BASE}/api/send-frequent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ friend_uuid: friendUuid, token: kakaoToken || '', top, subject: currentSubject }),
-    });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(err.detail || `전송 실패 (${res.status})`);
+    let sent = 0;
+    for (const text of messages) {
+      await sendMemo(text);
+      sent++;
     }
-    const data = await res.json();
-    showToast(`${data.sent_count}문제를 카카오톡으로 전송했습니다!`, 'success');
+    showToast(`${items.length}문제를 카카오톡으로 전송했습니다!`, 'success');
   } catch (e) {
-    showToast(e.message || '전송에 실패했습니다.', 'error');
+    const detail = (e && (e.msg || e.error_description)) || JSON.stringify(e);
+    showToast('전송 실패: ' + detail, 'error');
   } finally {
     _sending = false; sendBtn.disabled = false;
   }

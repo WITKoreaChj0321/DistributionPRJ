@@ -24,6 +24,11 @@
   <main class="main-content">
     <div class="container">
 
+      <nav style="display:flex;gap:8px;margin-bottom:16px;">
+        <a href="index.html" style="font-size:.86rem;color:var(--primary);text-decoration:none;padding:6px 12px;border:1px solid var(--primary);border-radius:8px;background:#fff;">&#128293; 최빈출 목록 / 카카오 전송</a>
+        <a href="quiz.html" style="font-size:.86rem;color:var(--text-2);text-decoration:none;padding:6px 12px;border:1px solid var(--border);border-radius:8px;background:#fff;">&#128221; 퀴즈 풀기</a>
+      </nav>
+
       <!-- ===== 카카오 연동 (선택) ===== -->
       <section class="card" id="section-kakao">
         <h2 class="section-title">
@@ -32,12 +37,11 @@
         </h2>
 
         <div class="kakao-login-area" id="kakao-login-area">
-          <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button"
-                  onclick="window.location.href='/auth/kakao';">
+          <button class="btn btn-kakao btn-lg" id="kakao-login-btn" type="button">
             <span class="kakao-icon">&#128172;</span>
             카카오 로그인
           </button>
-          <p class="kakao-hint">로그인하면 최빈출 문제를 나 또는 친구에게 보낼 수 있습니다.</p>
+          <p class="kakao-hint">로그인하면 최빈출 문제를 나에게 보낼 수 있습니다. (서버 없이 동작)</p>
         </div>
 
         <div class="kakao-friend-area hidden" id="kakao-friend-area">
@@ -49,14 +53,7 @@
             </div>
             <button class="btn btn-sm btn-ghost" id="kakao-logout-btn" type="button">로그아웃</button>
           </div>
-          <div class="friend-select-wrap">
-            <label class="form-label" for="friend-select">전송 대상</label>
-            <div class="select-wrap">
-              <select class="form-select" id="friend-select">
-                <option value="me">나에게 보내기</option>
-              </select>
-            </div>
-          </div>
+          <p style="font-size:.82rem;color:#64748B;margin-top:4px;">📨 최빈출 문제를 <b>내 카카오톡(나에게 보내기)</b>으로 전송합니다.</p>
         </div>
       </section>
 
@@ -120,6 +117,10 @@
     </div>
   </footer>
 
-  <script src="frequent.js?v=2"></script>
+  <!-- 카카오 JavaScript SDK (서버 없이 카카오 전송) -->
+  <script src="https://t1.kakaocdn.net/kakao_js_sdk/2.7.2/kakao.min.js"
+          integrity="sha384-TiCUE00h649CAMonG018J2ujOgDKW/kVWlChEuu4jK2vxfAAD0eZxzCKakxg55G4"
+          crossorigin="anonymous"></script>
+  <script src="frequent.js?v=3"></script>
 </body>
 </html>
