@@ -186,3 +186,19 @@ async def record_wrong(w: WrongIn):
 @app.post("/api/wrong/send-now")
 async def send_now():
     return await send_daily_digest()
+
+@app.get("/api/wrong/pending")
+async def pending():
+    """미발송 오답 현황 조회 (읽기 전용, 채널 발송 없음)."""
+    async with Session() as s:
+        rows = list((await s.execute(
+            select(WrongAnswer).where(WrongAnswer.sent_at.is_(None))
+            .order_by(WrongAnswer.id.desc()))).scalars().all())
+    return {
+        "ok": True,
+        "pending": len(rows),
+        "questions": len(set(r.qkey for r in rows)),
+        "items": [{"year": r.year, "num": r.num, "subject": r.subject,
+                   "chosen_no": r.chosen_no, "answer_no": r.answer_no,
+                   "q": (r.question_text or "")[:40]} for r in rows[:50]],
+    }

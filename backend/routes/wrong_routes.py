@@ -44,3 +44,22 @@ async def send_now() -> dict:
     """수동 발송 트리거 (테스트용). 미발송 오답을 즉시 집계·전송."""
     from ..scheduler import send_daily_digest
     return await send_daily_digest()
+
+
+@router.get("/wrong/pending")
+async def pending() -> dict:
+    """미발송 오답 현황 조회 (읽기 전용, 채널 발송 없음)."""
+    from sqlalchemy import select
+
+    async with AsyncSessionLocal() as session:
+        rows = list((await session.execute(
+            select(WrongAnswer).where(WrongAnswer.sent_at.is_(None))
+            .order_by(WrongAnswer.id.desc()))).scalars().all())
+    return {
+        "ok": True,
+        "pending": len(rows),
+        "questions": len(set(r.qkey for r in rows)),
+        "items": [{"year": r.year, "num": r.num, "subject": r.subject,
+                   "chosen_no": r.chosen_no, "answer_no": r.answer_no,
+                   "q": (r.question_text or "")[:40]} for r in rows[:50]],
+    }
