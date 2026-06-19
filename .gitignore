@@ -58,3 +58,7 @@ Thumbs.db
 # Playwright
 playwright-report/
 test-results/
+
+# 런타임 오답 DB
+telegram_service/wrongs.db
+*.db-journal
