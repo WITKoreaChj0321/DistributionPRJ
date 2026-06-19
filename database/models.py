@@ -53,6 +53,32 @@ class Question(Base):
         }
 
 
+class WrongAnswer(Base):
+    """퀴즈에서 발생한 오답 기록 (텔레그램 일일 발송용)."""
+    __tablename__ = "wrong_answers"
+
+    id = Column(Integer, primary_key=True, index=True)
+    qkey = Column(String(50), index=True)        # "2020년 1회|8" 형태 문제 식별자
+    subject = Column(String(100))
+    year = Column(String(30))                    # "2020년 1회"
+    num = Column(Integer)
+    question_text = Column(Text)
+    answer_text = Column(Text)                    # 정답 보기 내용
+    answer_no = Column(Integer)                   # 정답 번호(1~5)
+    chosen_no = Column(Integer)                   # 사용자가 고른 번호
+    img_url = Column(String(500))                 # 글상자 이미지 절대 URL (있으면)
+    created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
+    sent_at = Column(DateTime, nullable=True)     # 텔레그램 발송 완료 시각
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id, "qkey": self.qkey, "subject": self.subject,
+            "year": self.year, "num": self.num, "question_text": self.question_text,
+            "answer_text": self.answer_text, "answer_no": self.answer_no,
+            "chosen_no": self.chosen_no, "img_url": self.img_url,
+        }
+
+
 async def init_db():
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

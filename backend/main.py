@@ -16,6 +16,7 @@ from fastapi.staticfiles import StaticFiles
 from .config import settings
 from .routes.analyze import router as analyze_router
 from .routes.kakao_routes import router as kakao_router
+from .routes.wrong_routes import router as wrong_router
 
 # 프로젝트 루트 (backend/ 의 부모)
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -45,7 +46,13 @@ async def lifespan(app: FastAPI):
         questions = processor.process(raw)
         await vector_db.add_questions(questions)
 
+    # 텔레그램 일일 오답 발송 스케줄러 (18시 KST)
+    from .scheduler import start_scheduler, shutdown_scheduler
+    start_scheduler()
+
     yield
+
+    shutdown_scheduler()
 
 
 app = FastAPI(
@@ -71,6 +78,7 @@ app.add_middleware(
 # ──────────────────────────────────────────────
 app.include_router(analyze_router)
 app.include_router(kakao_router)
+app.include_router(wrong_router)
 
 # ──────────────────────────────────────────────
 # 정적 파일 (frontend/)

@@ -33,6 +33,9 @@ PyMuPDF==1.24.13
 # Kakao
 python-jose[cryptography]==3.3.0
 
+# Scheduler (텔레그램 일일 발송)
+APScheduler==3.10.4
+
 # Utils
 python-dotenv==1.0.1
 pydantic-settings==2.6.1

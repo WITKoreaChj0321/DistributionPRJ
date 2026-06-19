@@ -152,6 +152,16 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f0f
     </div>
   </div>
 
+  <div class="card" id="note-card">
+    <h2>📌 내 오답 노트</h2>
+    <p style="font-size:.85rem;color:#64748b;margin-bottom:10px" id="note-count">저장된 오답 0문제</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="nav-btn btn-finish" style="flex:1;min-width:150px" onclick="sendWrongsTelegram()">✈️ 텔레그램으로 오답 보내기</button>
+      <button class="nav-btn btn-home" style="flex:1;min-width:110px" onclick="clearWrongs()">🗑️ 기록 비우기</button>
+    </div>
+    <p style="font-size:.72rem;color:#94a3b8;margin-top:8px">틀린 문제는 자동 저장됩니다. 전송 시 텔레그램에서 <b>Saved Messages(나와의 채팅)</b>를 선택하면 본인에게 받을 수 있어요. (봇·로그인 불필요)</p>
+  </div>
+
   <button class="start-btn" onclick="startQuiz()">🚀 퀴즈 시작</button>
 </div>
 
@@ -359,6 +369,7 @@ function selectOpt(n, btn, q) {
     const allBtns = document.querySelectorAll('.opt-btn');
     allBtns.forEach((b, i) => { if (i + 1 === q.ans) b.classList.add('show-correct'); });
     wrongs.push({q, chosen: n});
+    saveWrong(q, n);
   }
   rm.style.display = 'block';
   document.getElementById('score-badge').textContent = `맞춤: ${correct}`;
@@ -440,10 +451,90 @@ function show(id) {
     document.getElementById(s).style.display = s === id ? 'block' : 'none';
   });
 }
-function goHome() { show('home'); updateStat(); }
+function goHome() { show('home'); updateStat(); renderNote(); }
+
+// ── 오답 노트 (localStorage 영구 저장) ──
+const WRONG_KEY = 'dist_quiz_wrongs_v1';
+// 배포된 백엔드 URL (예: 'https://your-api.onrender.com'). 비우면 서버 수집 비활성.
+const API_BASE = '';
+
+function loadWrongs() {
+  try { return JSON.parse(localStorage.getItem(WRONG_KEY)) || []; } catch (e) { return []; }
+}
+function persistWrongs(arr) {
+  try { localStorage.setItem(WRONG_KEY, JSON.stringify(arr)); } catch (e) {}
+}
+function saveWrong(q, chosen) {
+  const arr = loadWrongs();
+  const id = `${q.year}|${q.num}`;
+  if (!arr.some(w => w.id === id)) {               // localStorage는 중복 제외
+    arr.push({ id, year: q.year, num: q.num, subj: q.subj, q: q.q,
+               opts: q.opts, ans: q.ans, img: q.img || null });
+    persistWrongs(arr);
+    renderNote();
+  }
+  postWrongToServer(q, chosen);                    // 서버는 매 오답 기록(집계용)
+}
+
+// 오답 1건을 백엔드로 fire-and-forget 전송 (실패해도 퀴즈엔 영향 없음)
+function postWrongToServer(q, chosen) {
+  if (!API_BASE) return;
+  const ansTxt = (q.opts[q.ans] || q.opts[String(q.ans)] || '').toString();
+  const img = (q.img && q.img.length) ? new URL(q.img[0], location.href).href : '';
+  try {
+    fetch(API_BASE.replace(/\/$/, '') + '/api/wrong', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        qkey: `${q.year}|${q.num}`, subject: q.subj, year: q.year, num: q.num,
+        question_text: q.q, answer_text: ansTxt, answer_no: q.ans,
+        chosen_no: chosen || 0, img_url: img,
+      }),
+      keepalive: true,
+    }).catch(() => {});
+  } catch (e) { /* 무시 */ }
+}
+function clearWrongs() {
+  if (!loadWrongs().length) { alert('저장된 오답이 없습니다.'); return; }
+  if (!confirm('저장된 오답 기록을 모두 지울까요?')) return;
+  localStorage.removeItem(WRONG_KEY);
+  renderNote();
+}
+function renderNote() {
+  const el = document.getElementById('note-count');
+  if (el) el.textContent = `저장된 오답 ${loadWrongs().length}문제`;
+}
+
+// ── 텔레그램으로 오답 보내기 (t.me 공유 링크 · 봇/토큰/로그인 불필요) ──
+function buildWrongsMessage() {
+  const arr = loadWrongs();
+  if (!arr.length) return '';
+  const nums = ['①','②','③','④','⑤'];
+  const lines = [`📚 유통관리사 오답노트 (${arr.length}문제)`, ''];
+  arr.forEach((w, i) => {
+    const ansTxt = (w.opts[w.ans] || w.opts[String(w.ans)] || '').toString();
+    let block = `${i + 1}. [${w.subj}] ${w.year} ${w.num}번\nQ. ${(w.q || '').trim()}\n✅ 정답 ${nums[w.ans - 1] || ''} ${ansTxt}`;
+    if (w.img && w.img.length) block += `\n📷 글상자: ${new URL(w.img[0], location.href).href}`;
+    lines.push(block, '');
+  });
+  return lines.join('\n');
+}
+function sendWrongsTelegram() {
+  const arr = loadWrongs();
+  if (!arr.length) { alert('저장된 오답이 없습니다. 먼저 퀴즈를 풀어보세요.'); return; }
+  let text = buildWrongsMessage();
+  const LIMIT = 3500;   // 텔레그램/URL 길이 안전선
+  if (text.length > LIMIT) {
+    text = text.slice(0, LIMIT) + '\n…(내용이 길어 일부만 포함했습니다. 기록을 줄이거나 나눠 보내세요.)';
+  }
+  const url = 'https://t.me/share/url?url=' + encodeURIComponent(location.href) +
+              '&text=' + encodeURIComponent(text);
+  window.open(url, '_blank', 'noopener');
+}
 
 // Init
 updateStat();
+renderNote();
 </script>
 </body>
 </html>
