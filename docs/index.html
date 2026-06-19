@@ -456,7 +456,7 @@ function goHome() { show('home'); updateStat(); renderNote(); }
 // ── 오답 노트 (localStorage 영구 저장) ──
 const WRONG_KEY = 'dist_quiz_wrongs_v1';
 // 배포된 백엔드 URL (예: 'https://your-api.onrender.com'). 비우면 서버 수집 비활성.
-const API_BASE = '';
+const API_BASE = 'https://distributionprj.onrender.com';
 
 function loadWrongs() {
   try { return JSON.parse(localStorage.getItem(WRONG_KEY)) || []; } catch (e) { return []; }
