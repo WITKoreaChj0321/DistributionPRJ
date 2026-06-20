@@ -17,10 +17,11 @@
         텔레그램 @licencedistribute 채널 자동 발송
 ```
 
-**3대 기능 모두 완료·프로덕션 검증됨:**
-1. **객관식 퀴즈** — 1,105문제, 즉시 정답/오답 판별, 해설, 셔플
+**4대 기능 모두 완료·프로덕션 검증됨:**
+1. **객관식 퀴즈** — 1,105문제, 즉시 정답/오답 판별, 셔플
 2. **글상자 이미지 복원** — 원본 PDF에서 글상자/그림을 잘라 230문제에 표시 (`docs/boxes/`)
-3. **오답 텔레그램 발송** — 웹 오답 → 클라우드 수집 → 매일 18시 채널 발송
+3. **해설 표시** — 해설집 17개에서 추출한 해설을 1,091문제에 표시 (퀴즈 결과·오답확인·텔레그램)
+4. **오답 텔레그램 발송** — 웹 오답 → 클라우드 수집 → 매일 18시 채널 발송
 
 ---
 
@@ -82,7 +83,10 @@
 - `scripts/extract_boxes.py` — PDF에서 글상자 이미지 추출 → `docs/boxes/`
 - `scripts/inject_boxes.py` — QUIZ_DATA에 이미지 경로 주입
 - `scripts/box_map.json` — (year|num) → 이미지 매핑
-- 원본 PDF: `data/questions/유통관리사2급YYYYMMDD(교사용).pdf` (17개)
+- `scripts/extract_explanations.py` — 해설집 PDF에서 해설 추출 → `explanations.json` (양식 2종: 신형 `[해설]`, 구형 `<문제 해설>`)
+- `scripts/inject_explanations.py` — QUIZ_DATA에 explanation 주입
+- `scripts/explanations.json` — (year|num) → 해설 매핑 (1,510개)
+- 원본 PDF: `data/questions/유통관리사2급YYYYMMDD(교사용).pdf` (17개 문제) + `...(해설집).pdf` (17개 해설)
 
 ### 비밀/런타임 (git 제외됨)
 - `.env` — 카카오/텔레그램 토큰 (gitignore)
@@ -137,6 +141,7 @@ cd docs && python -m http.server 8001   # http://localhost:8001/
 
 - QUIZ_DATA: **1,105문제** (정원 1,530 대비 부족 — 원본 크롤이 글상자/이미지 문제 일부 누락)
 - 글상자 이미지 연결: **230문제** (`docs/boxes/`, 340개 이미지)
+- 해설 연결: **1,091문제** (해설집 17개에서 추출, `explanation` 필드)
 - 보기 병합 깨짐 보정: 로드 시 `normalizeMergedOptions()`가 205문제 자동 분리
 - 손상 데이터 3문제(질문↔정답 불일치)는 퀴즈에서 제외
 - 회차 매핑: 월 기준(5~6월=1회, 7~8월=2회, 9~12월=3회), 17개 PDF 전부 QUIZ_DATA와 본문 일치 검증됨
