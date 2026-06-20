@@ -67,6 +67,7 @@ class WrongAnswer(Base):
     answer_no = Column(Integer)                   # 정답 번호(1~5)
     chosen_no = Column(Integer)                   # 사용자가 고른 번호
     img_url = Column(String(500))                 # 글상자 이미지 절대 URL (있으면)
+    explanation = Column(Text)                    # 해설
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     sent_at = Column(DateTime, nullable=True)     # 텔레그램 발송 완료 시각
 

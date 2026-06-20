@@ -39,6 +39,9 @@ def _format_digest(rows: list[WrongAnswer]) -> str:
         )
         if r.img_url:
             block += f"\n📷 글상자: {r.img_url}"
+        if r.explanation:
+            exp = r.explanation.strip()
+            block += f"\n📝 {exp[:200] + '…' if len(exp) > 200 else exp}"
         blocks.append(block)
     return "\n".join(blocks)
 

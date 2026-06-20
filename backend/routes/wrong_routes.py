@@ -22,6 +22,7 @@ class WrongIn(BaseModel):
     answer_no: int = 0
     chosen_no: int = 0
     img_url: str = ""
+    explanation: str = ""
 
 
 @router.post("/wrong")
@@ -33,7 +34,7 @@ async def record_wrong(w: WrongIn) -> dict:
             subject=w.subject, year=w.year, num=w.num,
             question_text=w.question_text, answer_text=w.answer_text,
             answer_no=w.answer_no or None, chosen_no=w.chosen_no or None,
-            img_url=w.img_url or None,
+            img_url=w.img_url or None, explanation=w.explanation or None,
         ))
         await session.commit()
     return {"ok": True}

@@ -56,6 +56,7 @@ class WrongAnswer(Base):
     answer_no = Column(Integer)
     chosen_no = Column(Integer)
     img_url = Column(String(500))
+    explanation = Column(Text)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc), index=True)
     sent_at = Column(DateTime, nullable=True)
 
@@ -107,6 +108,11 @@ def _format_digest(rows: list[WrongAnswer]) -> str:
                  f"✅ 정답 {circle} {r.answer_text or ''}")
         if r.img_url:
             block += f"\n📷 글상자: {r.img_url}"
+        if r.explanation:
+            exp = r.explanation.strip()
+            if len(exp) > 200:
+                exp = exp[:200] + "…"
+            block += f"\n📝 {exp}"
         blocks.append(block)
     return "\n".join(blocks)
 
@@ -162,6 +168,7 @@ class WrongIn(BaseModel):
     answer_no: int = 0
     chosen_no: int = 0
     img_url: str = ""
+    explanation: str = ""
 
 @app.get("/")
 async def root():
@@ -179,7 +186,7 @@ async def record_wrong(w: WrongIn):
             qkey=w.qkey or f"{w.year}|{w.num}", subject=w.subject, year=w.year,
             num=w.num, question_text=w.question_text, answer_text=w.answer_text,
             answer_no=w.answer_no or None, chosen_no=w.chosen_no or None,
-            img_url=w.img_url or None))
+            img_url=w.img_url or None, explanation=w.explanation or None))
         await s.commit()
     return {"ok": True}
 
